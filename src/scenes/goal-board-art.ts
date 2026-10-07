@@ -23,6 +23,10 @@ import buttonSoundHoverUrl from "../../raw-assets/board{m}{copy}/button-sound-ho
 import buttonSoundUrl from "../../raw-assets/board{m}{copy}/button-sound.svg";
 
 import type { ButtonSkin } from "@/components/GoalControls";
+import {
+    goalAssets,
+    type GoalAssetName,
+} from "@/modules/game/engine/goal-assets";
 
 export type { ButtonSkin };
 
@@ -42,29 +46,29 @@ export type GoalBoardArt = {
 };
 
 const ART_URLS = {
-    ball: markBallUrl,
-    bomb: markBombUrl,
-    bullet: markBulletUrl,
-    buttonActive: buttonFaceActiveUrl,
-    buttonHover: buttonFaceHoverUrl,
-    buttonNormal: buttonFaceUrl,
-    cellActive: cellActiveUrl,
-    cellExplode: cellExplodeUrl,
-    cellNormal: cellNormalUrl,
-    explode: markExplodeUrl,
-    infoActive: buttonInfoActiveUrl,
-    infoHover: buttonInfoHoverUrl,
-    infoNormal: buttonInfoUrl,
-    minusActive: buttonMinusActiveUrl,
-    minusHover: buttonMinusHoverUrl,
-    minusNormal: buttonMinusUrl,
-    plusActive: buttonPlusActiveUrl,
-    plusHover: buttonPlusHoverUrl,
-    plusNormal: buttonPlusUrl,
-    soundActive: buttonSoundActiveUrl,
-    soundHover: buttonSoundHoverUrl,
-    soundNormal: buttonSoundUrl,
-} as const;
+    [goalAssets.cell_normal]: cellNormalUrl,
+    [goalAssets.cell_active]: cellActiveUrl,
+    [goalAssets.cell_explode]: cellExplodeUrl,
+    [goalAssets.mark_ball]: markBallUrl,
+    [goalAssets.mark_bomb]: markBombUrl,
+    [goalAssets.mark_bullet]: markBulletUrl,
+    [goalAssets.mark_explode]: markExplodeUrl,
+    [goalAssets.button_face]: buttonFaceUrl,
+    [goalAssets.button_face_hover]: buttonFaceHoverUrl,
+    [goalAssets.button_face_active]: buttonFaceActiveUrl,
+    [goalAssets.button_plus]: buttonPlusUrl,
+    [goalAssets.button_plus_hover]: buttonPlusHoverUrl,
+    [goalAssets.button_plus_active]: buttonPlusActiveUrl,
+    [goalAssets.button_minus]: buttonMinusUrl,
+    [goalAssets.button_minus_hover]: buttonMinusHoverUrl,
+    [goalAssets.button_minus_active]: buttonMinusActiveUrl,
+    [goalAssets.button_info]: buttonInfoUrl,
+    [goalAssets.button_info_hover]: buttonInfoHoverUrl,
+    [goalAssets.button_info_active]: buttonInfoActiveUrl,
+    [goalAssets.button_sound]: buttonSoundUrl,
+    [goalAssets.button_sound_hover]: buttonSoundHoverUrl,
+    [goalAssets.button_sound_active]: buttonSoundActiveUrl,
+} satisfies Record<GoalAssetName, string>;
 
 export async function loadGoalBoardArt(): Promise<GoalBoardArt> {
     const loaded = await Promise.all(
@@ -82,28 +86,55 @@ export async function loadGoalBoardArt(): Promise<GoalBoardArt> {
     >;
 
     return {
-        ball: texture.ball,
-        bomb: texture.bomb,
-        bullet: texture.bullet,
-        button: skin(texture, "button"),
-        cellActive: texture.cellActive,
-        cellExplode: texture.cellExplode,
-        cellNormal: texture.cellNormal,
-        explode: texture.explode,
-        info: skin(texture, "info"),
-        minus: skin(texture, "minus"),
-        plus: skin(texture, "plus"),
-        sound: skin(texture, "sound"),
+        ball: texture[goalAssets.mark_ball],
+        bomb: texture[goalAssets.mark_bomb],
+        bullet: texture[goalAssets.mark_bullet],
+        button: skin(
+            texture,
+            goalAssets.button_face,
+            goalAssets.button_face_hover,
+            goalAssets.button_face_active,
+        ),
+        cellActive: texture[goalAssets.cell_active],
+        cellExplode: texture[goalAssets.cell_explode],
+        cellNormal: texture[goalAssets.cell_normal],
+        explode: texture[goalAssets.mark_explode],
+        info: skin(
+            texture,
+            goalAssets.button_info,
+            goalAssets.button_info_hover,
+            goalAssets.button_info_active,
+        ),
+        minus: skin(
+            texture,
+            goalAssets.button_minus,
+            goalAssets.button_minus_hover,
+            goalAssets.button_minus_active,
+        ),
+        plus: skin(
+            texture,
+            goalAssets.button_plus,
+            goalAssets.button_plus_hover,
+            goalAssets.button_plus_active,
+        ),
+        sound: skin(
+            texture,
+            goalAssets.button_sound,
+            goalAssets.button_sound_hover,
+            goalAssets.button_sound_active,
+        ),
     };
 }
 
 function skin(
-    texture: Record<string, Texture>,
-    name: string,
+    texture: Record<GoalAssetName, Texture>,
+    normal: GoalAssetName,
+    hover: GoalAssetName,
+    active: GoalAssetName,
 ): ButtonSkin {
     return {
-        normal: texture[`${name}Normal`],
-        hover: texture[`${name}Hover`],
-        active: texture[`${name}Active`],
+        normal: texture[normal],
+        hover: texture[hover],
+        active: texture[active],
     };
 }

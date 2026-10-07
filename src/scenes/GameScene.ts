@@ -2,10 +2,15 @@ import { Application, Renderer } from "pixi.js";
 import type { Scene } from "@/scenes/Scene";
 import { GoalBoard } from "@/scenes/GoalBoard";
 import { loadGoalBoardArt } from "@/scenes/goal-board-art";
-import { GOAL_TURN_MS, goalMultiplierText } from "@/modules/game/engine/goal-constants";
+import {
+    GOAL_ERROR_CODES,
+    GOAL_TURN_MS,
+    goalMultiplierText,
+} from "@/modules/game/engine/goal-constants";
 import { goalEngine } from "@/modules/game/engine/goal-engine";
+import { GOAL_EVENT_NAMES, goalEvents } from "@/modules/game/engine/goal-events";
 import { goalState } from "@/modules/game/engine/goal-state";
-import type { GoalRound } from "@/modules/game/engine/goal-types";
+import type { GoalPickResult, GoalPlayResult } from "@/modules/game/engine/goal-types";
 import { gameState } from "@/modules/game/engine/game.state";
 import { i18n } from "@/shared/i18n/I18nManager";
 import { format } from "@/shared/utils/formatNumber";
@@ -21,6 +26,7 @@ export class GameScene implements Scene {
     private turnTimer: ReturnType<typeof setInterval> | null = null;
     private turnId = 0;
     private boomTimer: ReturnType<typeof setTimeout> | null = null;
+    private readonly unlisten: Array<() => void> = [];
     private destroyed = false;
 
     constructor(
@@ -37,6 +43,7 @@ export class GameScene implements Scene {
             onRandom: this.onRandom,
         });
         this.app.stage.addChild(this.board);
+        this.listen();
         void this.mount();
     }
 
@@ -59,6 +66,8 @@ export class GameScene implements Scene {
         if (this.destroyed) return;
 
         this.destroyed = true;
+        for (const stop of this.unlisten) stop();
+        this.unlisten.length = 0;
         this.clearTurnTimer();
         this.clearBoomTimer();
         this.app.renderer.off("resize", this.paint);
@@ -97,14 +106,40 @@ export class GameScene implements Scene {
             betCaption: i18n.t("goal.betLevel"),
             betText: format(round.betLevel),
             betEnabled: goalEngine.CanChangeBet() && !this.busy,
+            notice: this.notice(),
         });
     };
+
+    private listen(): void {
+        this.unlisten.push(
+            goalEvents.on(GOAL_EVENT_NAMES.BET_LEVEL_CHANGED, () => this.paint()),
+            goalEvents.on(GOAL_EVENT_NAMES.ERROR, () => this.paint()),
+            goalEvents.on(GOAL_EVENT_NAMES.PLAY_STARTED, (payload) => {
+                const result = payload as GoalPlayResult & { ok: true };
+                gameState.balance -= result.stake;
+                this.beginTurn();
+                this.paint();
+            }),
+            goalEvents.on(GOAL_EVENT_NAMES.PICK_RESOLVED, (payload) => {
+                this.onPickResolved(payload as GoalPickResult);
+            }),
+            goalEvents.on(GOAL_EVENT_NAMES.CASHOUT, (payload) => {
+                const result = payload as GoalPickResult;
+                this.pay(result.cashedOut);
+                goalEngine.ApplyRound(result.round);
+            }),
+            goalEvents.on(GOAL_EVENT_NAMES.STANDBY, () => {
+                this.clearTurnTimer();
+                this.secondsLeft = null;
+                this.paint();
+            }),
+        );
+    }
 
     private onBet = (direction: -1 | 1): void => {
         if (this.busy || !goalEngine.CanChangeBet()) return;
 
         goalEngine.ChangeBetLevel(direction);
-        this.paint();
     };
 
     private onMain = (): void => {
@@ -117,22 +152,11 @@ export class GameScene implements Scene {
         if (this.busy) return;
 
         if (goalState.round.phase === "playing") {
-            const result = goalEngine.Cashout();
-            if (result.cashedOut <= 0 && result.round === goalState.round) return;
-
-            this.pay(result.cashedOut);
-            this.enterStandby(result.round);
+            goalEngine.Cashout();
             return;
         }
 
-        if (!goalEngine.CanPlay()) return;
-
-        const result = goalEngine.Play(gameState.balance, unit());
-        if (!result.ok) return;
-
-        gameState.balance -= result.stake;
-        this.beginTurn();
-        this.paint();
+        goalEngine.Play(gameState.balance, unit());
     };
 
     private onRandom = (): void => {
@@ -161,7 +185,10 @@ export class GameScene implements Scene {
     private resolvePick(slot: number): void {
         if (goalState.round.phase !== "playing") return;
 
-        const result = goalEngine.Pick(slot, unit());
+        goalEngine.Pick(slot, unit());
+    }
+
+    private onPickResolved(result: GoalPickResult): void {
         this.clearTurnTimer();
 
         if (result.lost) {
@@ -173,14 +200,14 @@ export class GameScene implements Scene {
                 if (this.destroyed) return;
 
                 this.busy = false;
-                this.enterStandby(result.round);
+                goalEngine.ApplyRound(result.round);
             }, BOOM_PAUSE_MS);
             return;
         }
 
         if (result.cashedOut > 0) {
             this.pay(result.cashedOut);
-            this.enterStandby(result.round);
+            goalEngine.ApplyRound(result.round);
             return;
         }
 
@@ -214,16 +241,21 @@ export class GameScene implements Scene {
     private settleTimeout(): void {
         if (goalState.round.phase !== "playing" || this.busy) return;
 
-        const result = goalEngine.TakeCashout();
-        this.pay(result.cashedOut);
-        this.enterStandby(result.round);
+        goalEngine.TakeCashout();
     }
 
-    private enterStandby(round: GoalRound): void {
-        this.clearTurnTimer();
-        goalEngine.ApplyRound(round);
-        this.secondsLeft = null;
-        this.paint();
+    private notice(): string | null {
+        const error = goalState.error;
+        if (error === GOAL_ERROR_CODES.INSUFFICIENT_BALANCE) {
+            return i18n.t("goal.insufficientBalance");
+        }
+        if (error === GOAL_ERROR_CODES.INVALID_SLOT) {
+            return i18n.t("goal.invalidSlot");
+        }
+        if (error === GOAL_ERROR_CODES.INVALID_STATE) {
+            return i18n.t("goal.invalidState");
+        }
+        return null;
     }
 
     private pay(amount: number): void {

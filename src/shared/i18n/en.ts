@@ -74,6 +74,9 @@ export const en = {
         cashout: "CASHOUT",
         play: "PLAY",
         random: "RANDOM",
+        insufficientBalance: "Not enough balance",
+        invalidState: "Choose a bet first",
+        invalidSlot: "Pick an open cell",
     },
     settings: {
         music: "MUSIC",

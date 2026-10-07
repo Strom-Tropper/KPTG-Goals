@@ -39,6 +39,7 @@ export type GoalBoardModel = {
     betCaption: string;
     betText: string;
     betEnabled: boolean;
+    notice: string | null;
 };
 
 export type GoalBoardActions = {
@@ -106,6 +107,12 @@ export class GoalBoard extends Container {
             margin + buttonH * 0.28,
             buttonH * 0.34,
             art,
+        );
+        this.drawNotice(
+            model,
+            model.width / 2,
+            margin + buttonH * 0.28,
+            Math.max(16, Math.round(buttonH * 0.34)),
         );
 
         const rowY = model.height - margin - buttonH;
@@ -208,6 +215,12 @@ export class GoalBoard extends Container {
             margin + buttonH * 0.2,
             buttonH * 0.32,
             art,
+        );
+        this.drawNotice(
+            model,
+            model.width / 2,
+            margin + buttonH * 0.2,
+            Math.max(14, Math.round(buttonH * 0.32)),
         );
 
         const buttonW = Math.round(grid.outerW * 0.46);
@@ -346,6 +359,17 @@ export class GoalBoard extends Container {
 
         clock.visible = seconds !== null;
         if (seconds !== null) clock.text = String(seconds);
+    }
+
+    private drawNotice(
+        model: GoalBoardModel,
+        x: number,
+        y: number,
+        fontSize: number,
+    ): void {
+        if (!model.notice) return;
+
+        this.addChild(goalLabel(model.notice, x, y, fontSize));
     }
 
     private drawTurnClock(model: GoalBoardModel, x: number, y: number, fontSize: number): void {

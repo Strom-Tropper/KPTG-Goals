@@ -8,6 +8,7 @@ export const GOAL_EVENT_NAMES = {
     PICK_RESOLVED: "PICK_RESOLVED",
     CASHOUT: "CASHOUT",
     STANDBY: "STANDBY",
+    ERROR: "ERROR",
 };
 
 export const goalEvents = {

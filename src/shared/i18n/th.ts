@@ -64,6 +64,9 @@ export const th = {
         cashout: "รับเงิน",
         play: "เล่น",
         random: "สุ่ม",
+        insufficientBalance: "ยอดเงินไม่พอ",
+        invalidState: "เลือกเดิมพันก่อน",
+        invalidSlot: "เลือกช่อง đang mở",
     },
     settings: {
         music: "MUSIC",

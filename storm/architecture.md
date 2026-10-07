@@ -15,7 +15,7 @@ pixi-core-goal/
 ├── src/main.ts                     boot
 ├── src/app/create-app.ts           Pixi, canvas theo cửa sổ
 ├── src/scenes/
-│   ├── GameScene.ts                gọi goalEngine, vẽ một kết quả
+│   ├── GameScene.ts                nghe goalEvents, vẽ một kết quả
 │   ├── GoalBoard.ts                xếp bàn ngang hoặc dọc
 │   ├── goal-cells.ts               một ô và icon trên ô
 │   ├── goal-board-art.ts           nạp SVG bàn từ raw-assets
@@ -47,14 +47,14 @@ Canvas resize theo cửa sổ. `DEFAULT_GAME_WIDTH` và `DEFAULT_GAME_HEIGHT` tr
 
 ## Goal
 
-Scene không tự nhớ ván. `goalEngine` ghi vào `goalState`. Scene đưa số dư và một số ngẫu nhiên vào, nhận kết quả, rồi vẽ. Đồng hồ 30 giây và khoảng dừng ô nổ nằm ở `GameScene`, vì đó là việc của màn hình.
+Scene không tự nhớ ván. `goalEngine` ghi vào `goalState` rồi bắn `goalEvents`. `GameScene` nghe sự kiện đó để trừ tiền, cộng tiền, chạy đồng hồ, và gọi `GoalBoard.show`. Pointer chỉ gọi engine rồi trả về.
 
 | File | Ý nghĩa |
 | --- | --- |
 | `goal-types.ts` | Kiểu ván `standby` / `playing`, ô đã đi, kết quả PLAY và pick, mặt ô |
 | `goal-state.ts` | Object `goalState`: ván hiện tại, mảng mặt ô, mã lỗi gần nhất |
 | `goal-constants.ts` | 7 cột, 4 ô, 30 giây, danh sách B Level, hệ số, mã lỗi, chữ `1.29x` |
-| `goal-events.ts` | `goalEvents` và tên sự kiện: đổi bet, PLAY, pick, cashout, về standby |
+| `goal-events.ts` | `goalEvents` và tên sự kiện: đổi bet, PLAY, pick, cashout, về standby, lỗi |
 | `goal-errors.ts` | Đổi lý do thất bại thành mã: không đủ tiền, sai pha, sai ô |
 | `goal-assets.ts` | Tên file hình bàn (`cell-normal`, `mark-bomb`, …). Không nạp texture, không import Pixi |
 | `goal-engine.ts` | Object `goalEngine`. Đổi bet, PLAY, pick, cashout, hết giờ. Ghi `goalState` và bắn `goalEvents` |
@@ -67,10 +67,10 @@ Màu vẽ bàn (`GOAL_BACKGROUND`, `GOAL_FRAME`, `GOAL_INK`) nằm ở `src/shar
 
 | File màn hình | Ý nghĩa |
 | --- | --- |
-| `GameScene.ts` | Pointer gọi `goalEngine`, rồi `GoalBoard.show`. Giữ timer 30 giây và khoảng hiện ô nổ |
+| `GameScene.ts` | Pointer gọi `goalEngine` rồi trả về. Nghe `goalEvents` để vẽ, giữ timer 30 giây và khoảng hiện ô nổ |
 | `GoalBoard.ts` | Chia khung ngang/dọc, lưới 7×4, hệ số trên cột, đồng hồ, hàng nút |
 | `goal-cells.ts` | Một ô: nền theo mặt, icon bóng / bom / nổ / chấm trắng. Ô `active` mới nhận bấm |
-| `goal-board-art.ts` | Import SVG trong `raw-assets/board{m}{copy}/` và `Assets.load` |
+| `goal-board-art.ts` | Nạp đúng tên trong `goal-assets.ts` từ `raw-assets/board{m}{copy}/` bằng `Assets.load` |
 | `GoalControls.ts` | Nút có 3 mặt: thường, hover, bấm được. `goalLabel` vẽ chữ trên nút |
 
 Hình bàn trong `raw-assets/board{m}{copy}/`:

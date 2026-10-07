@@ -91,12 +91,12 @@ function CanCashout() {
 function Play(balance: number, unit: number): GoalPlayResult {
     const round = goalState.round;
     if (round.phase !== "standby" || !round.betChosen) {
-        goalState.error = goalErrorCode("state");
+        reject("state");
         return { ok: false, round };
     }
 
     if (balance < round.betLevel) {
-        goalState.error = goalErrorCode("balance");
+        reject("balance");
         return { ok: false, round };
     }
 
@@ -109,11 +109,16 @@ function Play(balance: number, unit: number): GoalPlayResult {
         trapSlot: RandomSlot(unit),
         cleared: [],
     };
+    const started = {
+        ok: true as const,
+        round: playing,
+        stake: round.betLevel,
+    };
     goalState.error = null;
     goalState.round = playing;
     syncCells();
-    goalEvents.emit(GOAL_EVENT_NAMES.PLAY_STARTED, playing);
-    return { ok: true, round: playing, stake: round.betLevel };
+    goalEvents.emit(GOAL_EVENT_NAMES.PLAY_STARTED, started);
+    return started;
 }
 
 function Pick(slot: number, nextUnit: number): GoalPickResult {
@@ -124,7 +129,7 @@ function Pick(slot: number, nextUnit: number): GoalPickResult {
         slot >= GOAL_SLOT_COUNT ||
         !Number.isInteger(slot)
     ) {
-        goalState.error = goalErrorCode("slot");
+        reject("slot");
         return { round, cashedOut: 0, lost: false };
     }
 
@@ -174,7 +179,7 @@ function Pick(slot: number, nextUnit: number): GoalPickResult {
 
 function Cashout(): GoalPickResult {
     if (!CanCashout() || goalState.round.phase !== "playing") {
-        goalState.error = goalErrorCode("state");
+        reject("state");
         return { round: goalState.round, cashedOut: 0, lost: false };
     }
 
@@ -194,6 +199,11 @@ function ApplyRound(round: GoalRound) {
     goalState.round = round;
     syncCells();
     goalEvents.emit(GOAL_EVENT_NAMES.STANDBY, goalState.round);
+}
+
+function reject(reason: "balance" | "state" | "slot") {
+    goalState.error = goalErrorCode(reason);
+    goalEvents.emit(GOAL_EVENT_NAMES.ERROR, goalState.error);
 }
 
 function RandomSlot(unit: number) {
