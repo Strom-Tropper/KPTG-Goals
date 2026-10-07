@@ -1,0 +1,23 @@
+name: pj-59-goal
+
+services:
+  dev:
+    container_name: pj-59-goal
+    image: node:20-bookworm
+    working_dir: /app
+    volumes:
+      - ..:/app
+      - dev_node_modules:/app/node_modules
+    ports:
+      - "8090:8090"
+    environment:
+      BROWSER: none
+      VITE_GAME_ID: app
+      VITE_DEFAULT_LANG: en
+    command:
+      - sh
+      - -c
+      - npm ci --ignore-scripts --legacy-peer-deps && npx vite --mode development --host 0.0.0.0 --port 8090 --strictPort
+
+volumes:
+  dev_node_modules:

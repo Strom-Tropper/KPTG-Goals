@@ -1,0 +1,2 @@
+export const DEFAULT_GAME_WIDTH = 1920;
+export const DEFAULT_GAME_HEIGHT = 1080;

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="19" height="23" viewBox="0 0 19 23">
+    <defs>
+        <filter id="prefix__a" width="105.3%" height="109.2%" x="-2.7%" y="-2.3%" filterUnits="objectBoundingBox">
+            <feOffset dy="1" in="SourceAlpha" result="shadowOffsetOuter1"/>
+            <feColorMatrix in="shadowOffsetOuter1" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.5 0"/>
+        </filter>
+        <path id="prefix__b" d="M17.37 8.363L4.526.447C3.597-.125 2.474-.15 1.521.383.57.915 0 1.884 0 2.975v15.762c0 1.65 1.33 3 2.963 3.008h.013c.511 0 1.043-.16 1.54-.463.4-.244.526-.766.282-1.166-.244-.4-.765-.526-1.165-.282-.233.142-.46.215-.66.215-.617-.003-1.277-.531-1.277-1.312V2.975c0-.468.244-.883.652-1.112.409-.228.89-.218 1.289.027L16.48 9.807c.386.238.607.634.606 1.088 0 .453-.223.848-.611 1.085l-9.286 5.686c-.4.244-.525.766-.28 1.166.244.399.766.524 1.165.28l9.285-5.685c.889-.542 1.42-1.488 1.423-2.529.002-1.041-.526-1.989-1.412-2.535z"/>
+    </defs>
+    <g fill="none">
+        <use fill="#000" filter="url(#prefix__a)" xlink:href="#prefix__b"/>
+        <use fill="#FFF" xlink:href="#prefix__b"/>
+    </g>
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="22" height="17" viewBox="0 0 22 17">
+    <defs>
+        <filter id="prefix__a" width="104.7%" height="112.5%" x="-2.3%" y="-3.1%" filterUnits="objectBoundingBox">
+            <feOffset dy="1" in="SourceAlpha" result="shadowOffsetOuter1"/>
+            <feColorMatrix in="shadowOffsetOuter1" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.5 0"/>
+        </filter>
+        <filter id="prefix__c" width="111.3%" height="122.5%" x="-5.6%" y="-5.6%" filterUnits="objectBoundingBox">
+            <feOffset dy="1" in="SourceAlpha" result="shadowOffsetOuter1"/>
+            <feColorMatrix in="shadowOffsetOuter1" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.5 0"/>
+        </filter>
+        <path id="prefix__b" d="M20.444 0h-14.9c-.299 0-.579.151-.743.402L.145 7.513c-.193.296-.193.678 0 .974l4.656 7.111c.164.25.444.402.744.402h14.9c.49 0 .888-.398.888-.889V.89c0-.491-.398-.889-.889-.889zm-.888 14.222H6.026L1.95 8l4.074-6.222h13.53v12.444z"/>
+        <path id="prefix__d" d="M8.26 12.184c.347.347.91.347 1.257 0l2.927-2.927 2.927 2.927c.347.347.91.347 1.257 0 .348-.347.348-.91 0-1.257L13.701 8l2.927-2.927c.348-.347.348-.91 0-1.257-.347-.347-.91-.347-1.257 0l-2.927 2.927-2.927-2.927c-.347-.347-.91-.347-1.257 0-.347.347-.347.91 0 1.257L11.187 8 8.26 10.927c-.347.347-.347.91 0 1.257z"/>
+    </defs>
+    <g fill="none">
+        <use fill="#000" filter="url(#prefix__a)" xlink:href="#prefix__b"/>
+        <use fill="#FFF" xlink:href="#prefix__b"/>
+        <g>
+            <use fill="#000" filter="url(#prefix__c)" xlink:href="#prefix__d"/>
+            <use fill="#FFF" xlink:href="#prefix__d"/>
+        </g>
+    </g>
+</svg>
