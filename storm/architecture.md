@@ -1,176 +1,114 @@
 # Cách đọc source đang có
 
-File này mô tả cây đang nằm trên đĩa. Màn chơi là nền xanh, chữ GOAL. Package vẫn tên `igt-game-victory-road-fe`. Bàn quay, bonus, spine slot, và art `main-game` đã xóa. Engine và socket vẫn còn payload slot, để cắt tiếp khi có spec Goal.
+File này là bản đồ và luật làm việc cho game Goal (`g-59`). Spec ván chơi nằm ở `storm/goal-plan.md`. Cách chạy Docker nằm ở `storm/docker.md`.
 
-`AGENTS.md`, `storm/how-we-work.md`, và `storm/team-guide.md` vẫn viết theo khung Keno (store `createStore`, `src/state/`, `docs/RULE.md`, engine thuần). Những file đó chưa khớp code. Khi hai bên khác nhau, code thắng. Luật đặt tên và asset nằm ở `RULE.md` ngay root, không có `docs/RULE.md`.
+`RULE.md` ở root là ghi chú slot Victory Road. Nhiều folder trong đó không còn trên đĩa (`main-game/`, `BaseModal`, `en{copy}`, `docs/RULE.md`). Khi file đó khác code, code thắng.
 
-Game tiếp theo là Goal. Danh sách giữ, xóa, và comment nằm ở `storm/goal-plan.md`. File này không chốt bảng trả.
+## Còn sót, chưa comment
 
-## Năm tầng, đọc theo việc
+Asset slot và màn slot đã xóa. Mockup Lord of the Rings và script cắt mặt nạ bánh xe đã xóa ở lần rà này.
 
-Không tạo folder mới cho khớp sơ đồ. Tên folder dưới `src/` không ngang hàng.
+Những file sau vẫn là code slot, vẫn được TypeScript biên dịch, chưa comment:
 
-```
-                         GAME
-                          │
-             ┌────────────┴────────────┐
-             │                         │
-          GAME CORE               PRESENTATION
-             │                         │
-        modules/game                 scenes
-        shared                       components
-                                     animations
-             │                         │
-             └────────────┬────────────┘
-                          │
-                       SYSTEMS
-                   audio, keyboard
-                          │
-             ┌────────────┴────────────┐
-             │                         │
-           app                        assets
-           shared/utils               shared/i18n
-```
+| Còn | Vì sao chưa đụng |
+| --- | --- |
+| `src/modules/game/engine/game.engine.ts`, `game.state.ts`, `game.types.ts` | Payload quay, jackpot, free spin, lore. Boot không vẽ chúng, nhưng handler vẫn gọi |
+| `src/modules/game/handlers/` | Opcode slot 100, 101, 202 |
+| `src/systems/audio.config.ts` | Tên cue slot |
+| `src/shared/i18n/en.ts`, `th.ts`, `en.json` | Câu chữ Hobbit, freespin, jackpot |
+| `cheat-tool.ts` | Bảng QC slot. `main.ts` không gọi |
+| `src/animations/SpinnerPopup.ts` | Spine spinner trỏ đường `main-game/spine/`, file đó không còn trong `raw-assets/` |
 
-Luật slot hiện tại không thuần. `src/modules/game/engine/game.engine.ts` sửa object `gameState`, và import `isDemoMode` từ `ws/game.ws.ts`. Scene vẽ state đó. Goal mới nên đưa luật thuần vào engine và để scene chỉ vẽ, dù slot hiện tại chưa làm vậy.
+`GameScene` chỉ vẽ nền xanh và chữ GOAL.
 
-## Cây thật
+## Cây
 
 ```
 pixi-core-goal/
-├── index.html              shell, title GOAL, div #app và #%VITE_GAME_ID%
-├── src/main.ts             boot: manifest, Pixi, i18n, loading, GameScene, socket
-├── cheat-tool.ts           opcode 666 của slot, không được gọi lúc boot
-├── src/
-│   ├── app/create-app.ts   tạo Application, gắn canvas, resize theo cửa sổ
-│   ├── animations/         SpinnerPopup và hằng số spine spinner
-│   ├── components/
-│   │   ├── base/           Popup, Spinner, Button
-│   │   └── LoadingView.ts
-│   ├── modules/game/
-│   │   ├── engine/         state, payload socket, hằng số opcode, asset handle
-│   │   ├── handlers/       gắn opcode vào engine
-│   │   └── ws/             WebSocket, reconnect, demo token khi không có token
-│   ├── scenes/             GameScene nền xanh, SceneManager, Scene
-│   ├── shared/
-│   │   ├── constants/      DEFAULT_GAME_WIDTH 1920, DEFAULT_GAME_HEIGHT 1080
-│   │   ├── i18n/           I18nManager, en, th
-│   │   ├── types/
-│   │   └── utils/          createText, createSpine, format, delay, vẽ rect
-│   ├── systems/            audio.ts, audio.config.ts, keyboard.ts
-│   └── vite-env.d.ts
-├── raw-assets/             nguồn hình. Tag {} trên tên folder, xem mục assets
-├── public/                 manifest.json và assets đã sinh, không sửa tay
-├── scripts/                generate-wheel-symbol-masks.mjs
-├── RULE.md                 luật folder và asset của repo này
-└── storm/                  ghi chú, không phải module game
+├── index.html                 title GOAL
+├── src/main.ts                boot
+├── src/app/create-app.ts      Pixi, resize theo cửa sổ
+├── src/scenes/                GameScene, SceneManager, Scene
+├── src/components/base/       Popup, Spinner, Button
+├── src/animations/            SpinnerPopup
+├── src/modules/game/
+│   ├── engine/                state và payload. Chưa thuần
+│   ├── handlers/
+│   └── ws/
+├── src/shared/
+│   ├── constants/settings.ts  1920×1080
+│   ├── i18n/                  I18nManager, en, th
+│   ├── types/
+│   └── utils/                 createText, createSpine, số, delay
+├── src/systems/               audio, keyboard
+├── raw-assets/                hình gốc, tên folder có tag {}
+├── storm/                     ghi chú, không phải module game
+├── RULE.md                    ghi chú slot cũ
+└── AGENTS.md                  luật ngắn cho AI
 ```
 
-Không có `src/state/`, `src/utils/`, `src/i18n/`, `src/assets/`, `resize.ts`, `assets-config.ts`, `createStore`, hay package `zustand`. Số dư nằm ở `gameState.balance`. Scene đọc `gameEngine`, không đọc một store riêng.
+Không có `src/state/`, `src/utils/`, `src/i18n/`, `createStore`, `zustand`, `resize.ts`, `BaseModal`, `showModal`. Số dư slot nằm ở `gameState.balance`.
 
-Design size 1920×1080 nằm ở `src/shared/constants/settings.ts`. Canvas không khóa đúng hai số đó. `create-app.ts` resize renderer theo kích thước container.
+Canvas resize theo cửa sổ. Hai số 1920×1080 là cỡ thiết kế, không phải kích thước renderer.
 
-## Boot
+## Đặt tên
 
-`src/main.ts` làm một mạch:
+| Thứ | Cách đặt | Ví dụ đang có |
+| --- | --- | --- |
+| Scene | `PascalCase.ts`, export class cùng tên | `GameScene.ts` |
+| Component, Spine | `PascalCase.ts` | `Popup.ts`, `SpinnerPopup.ts` |
+| Hằng số, util | `camelCase.ts` | `settings.ts`, `createText.ts` |
+| Socket | `game.ws.ts`, `game.handlers.ts`, `game.requests.ts` | |
+| Engine | `game.state.ts`, `game.engine.ts`, `game.types.ts` | |
+| Import | alias `@/` trỏ vào `src/` | `@/scenes/GameScene` |
+| Chữ người chơi | `i18n.t` từ `@/shared/i18n/I18nManager` | |
+| File hình | tên thường, gạch ngang, không hash | `icon-play.svg` |
+| Folder hình | tag `{}` trên tên folder, không trên tên file | `icons{m}{copy}` |
 
-1. Lấy manifest. Production thì Vite nhét JSON vào marker trong `main.ts`. Dev thì `fetch("/manifest.json")`.
-2. `createApp` gắn canvas vào `#VITE_GAME_ID`, fallback `#app`.
-3. `i18n.init`, load bundle `localization_*`, rồi bundle `loading`.
-4. `LoadingView` trong lúc `PreloadAssets`.
-5. Tạo `GameScene` và `SceneManager` trước khi gỡ màn loading.
-6. `InitGameHandlers`, cheat tool, rồi `WebSocketConnect`.
-7. Spinner chỉ tắt sau opcode 100 và 110, hoặc khi socket lỗi.
+Tag folder:
 
-Không có token trên URL thì `game.ws.ts` tự gắn `token=demo-<uuid>` và `walletPlatformId=demo`. Vẫn cần `VITE_WS_URL`. URL rỗng thì client vẫn dựng scene, rồi báo mất kết nối.
-
-## modules/game
-
-| File | Việc trên đĩa |
+| Tag | Việc |
 | --- | --- |
-| `engine/game.state.ts` | Object mutable: số dư, cược, lưới, jackpot, free spin, journey, mini game |
-| `engine/game.engine.ts` | Nhận payload socket, ghi state, phát `eventBus` |
-| `engine/game.types.ts` | Lưới slot, paytable, journey, response |
-| `engine/game.constants.ts` | Opcode. Vào: 100, 101, 102, 104, 110, 196, 199, 451, 452. Ra: 202, 203, 208, 210, 401, 402 |
-| `engine/game.events.ts` | `eventBus` trong process, không phải socket |
-| `engine/game.errors.ts` | Mã lỗi người chơi thấy |
-| `engine/game.assets.ts` | Handle bundle đã load |
-| `domain/symbols.ts` | 16 symbol, id 1–16 |
-| `handlers/game.handlers.ts` | `socketClient.on` rồi gọi engine |
-| `handlers/game.requests.ts` | Gửi spin, mini game, đổi ví, history |
-| `ws/game.ws.ts` | Connect, reconnect tối đa 5 lần, demo token |
+| `{m}` | Một bundle. Tên bundle là tên folder sau khi bỏ tag |
+| `{copy}` | Chép nguyên. SVG dùng tag này |
+| `{tps}` | Ghép ảnh raster thành sprite sheet |
+| `{nomip}` | Không mipmap |
+| `{nc}` | Không nén |
 
-Bàn chơi là 9 lát × 3 vòng (27 ô). Ba symbol giống nhau trên một lát thì thắng. Luật đó nằm rải trong engine và scene, không phải một hàm thuần `canSelect`.
-
-## scenes và components
-
-`GameScene` dựng cả màn slot: nền, bàn quay, số dư, cược, spin, turbo, auto, jackpot, free spin, bản đồ, popup. `SceneManager` mở `BonusScene` khi event bonus hoặc minigame.
-
-`components/base/Popup.ts` là modal dùng chung. Không có `showModal` hay `BaseModal.ts`.
-
-`src/animations/` là class Spine, extends container. Scene slot gọi các class đó trực tiếp.
-
-Pixi object mới trong slot đang dùng `new Sprite` / `new Container` ở nhiều chỗ. Helper có sẵn là `createText` và `createSpine` trong `src/shared/utils/`. Code Goal mới đi qua helper đó.
-
-## shared, systems, assets
-
-`src/shared/i18n/` có `en` và `th`. Gọi `i18n.t` từ `@/shared/i18n/I18nManager`.
-
-`src/systems/audio.ts` là một lối tiếng: mở khoá sau gesture, nhạc và hiệu ứng tách nhau. Cue slot nằm ở `audio.config.ts`.
-
-Hình đi một chiều:
+`background{m}{copy}` là bundle `background`. Ảnh raster UI thì folder cha `{m}`, folder con `{tps}`.
 
 ```
 raw-assets/  →  npm run assetpack  →  public/assets/ + public/manifest.json
 ```
 
-Tên folder trong `raw-assets/` mang tag trong `{}`. AssetPack đọc tag rồi bỏ tag khỏi tên bundle. Không ghi tag vào tên file.
+Sửa hình ở `raw-assets/` thôi. Repo chưa có `.assetpack.js`. Dev không có manifest thì `main.ts` dùng bundle rỗng và vẫn mở màn xanh.
 
-| Tag | Việc |
+## Việc code đi đâu
+
+| Đang viết | Để ở |
 | --- | --- |
-| `{m}` | Một bundle trong manifest. Tên bundle là tên folder sau khi bỏ tag |
-| `{copy}` | Chép file nguyên, không nén, không ghép sprite sheet. Dùng cho SVG |
-| `{tps}` | Ghép ảnh trong folder thành một sprite sheet |
-| `{nomip}` | Không tạo mipmap |
-| `{nc}` | Không nén |
+| Luật ván, không Pixi, không DOM, không socket | `src/modules/game/engine/` |
+| Nối máy chủ | `src/modules/game/ws/`, `handlers/` |
+| Màn hình | `src/scenes/` |
+| Nút, modal dùng lại | `src/components/` |
+| B Level, hệ số, 30 giây, màu | `src/shared/constants/` |
+| Câu chữ | `src/shared/i18n/` |
+| Tiếng | `src/systems/audio.ts` |
+| Object Pixi mới | `createText`, `createSpine` trong `src/shared/utils/` |
+| Hình gốc | `raw-assets/` |
 
-Nhiều tag viết liền: `background{m}{copy}` là bundle `background`, file bên trong được chép nguyên.
+Engine slot hiện tại import `isDemoMode` từ socket và tự sửa `gameState`. Luật Goal mới không làm vậy. Scene đưa số vào, nhận kết quả, rồi mới vẽ và phát tiếng.
 
-Ảnh raster của UI thì folder cha `{m}`, folder con `{tps}`. Ví dụ cũ: `loading{m}/loading{tps}/`. SVG của Goal không đi vào `{tps}`.
+Không thêm package, không thêm folder, không thêm test runner, trừ khi task nói. `console.log` không qua lint. Không comment nếu tên đã nói được lý do.
 
-Cây nguồn hiện tại:
+Một việc một lần: một hành động, một đổi state, một thứ nhìn thấy. Luật thì `npx tsc --noEmit`. Màn hình thì `tsc`, rồi mở `http://localhost:8090`. Random nhận một nguồn từ ngoài.
 
-```
-raw-assets/
-├── background{m}{copy}/    goal-bg-before.svg, goal-bg-after.svg
-└── icons{m}{copy}/         icon-play.svg, icon-close.svg, …
-```
+## Boot hiện tại
 
-Tên file không có hash. `icon-play.51f0….svg` thành `icon-play.svg`.
+1. Đọc manifest nếu có.
+2. `createApp` gắn canvas vào `#VITE_GAME_ID`, không có thì `#app`.
+3. `i18n.init`.
+4. `GameScene` nền xanh.
+5. `InitGameHandlers`, rồi `WebSocketConnect`.
 
-Repo chưa có `.assetpack.js`. `public/assets/` và `dist/` là output slot đã xóa, không sửa tay. Chưa chạy assetpack thì dev không có `/manifest.json`. `main.ts` coi manifest thiếu là bundle rỗng và vẫn mở màn xanh.
-
-`npm run dev` chạy Vite. Cổng trong `vite.config.ts` là `8090`. Production cần `VITE_PRODUCTION_ASSET_BASE_URL`, `VITE_ASSETS_PATH`, `VITE_JS_PATH`.
-
-## Khi người chơi bấm Spin, code hiện tại
-
-```
-Nút Spin
-    │
-    ▼
-GameScene phát event / gọi request
-    │
-    ▼
-handlers gửi opcode 202
-    │
-    ▼
-Socket trả 101
-    │
-    ▼
-game.engine ghi gameState, phát eventBus
-    │
-    ▼
-GameScene vẽ lưới, line thắng, số dư
-```
-
-Engine vừa giữ state vừa đọc socket. Goal không nên copy đường này nguyên khối. Giữ socket và event bus. Luật ô, mìn, và hệ số để ở hàm thuần, scene chỉ đưa số vào và vẽ kết quả.
+Không có token thì socket tự gắn `token=demo-<uuid>`. `VITE_WS_URL` trống thì màn vẫn hiện, kết nối thất bại.

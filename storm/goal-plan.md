@@ -102,6 +102,8 @@ Không bịa thêm.
 
 ## Việc đã xóa
 
-Bàn quay, bonus, map, spine slot, HUD slot, `LoadingView`, art slot, `public/assets`, `dist`. Hình Goal đang ở `raw-assets/background{m}{copy}/` và `raw-assets/icons{m}{copy}/`. Chưa chạy assetpack.
+Bàn quay, bonus, map, spine slot, HUD slot, `LoadingView`, art slot, `public/assets`, `dist`, folder `mockup/`, và `scripts/generate-wheel-symbol-masks.mjs`. Hình Goal đang ở `raw-assets/background{m}{copy}/` và `raw-assets/icons{m}{copy}/`. Chưa chạy assetpack.
 
-Engine slot (`game.engine.ts`, `game.state.ts`, handler, opcode) vẫn còn. Cắt khi lát engine Goal thay chỗ đó. `cheat-tool.ts` không gọi lúc boot.
+## Chưa comment
+
+Engine slot, handler, `audio.config.ts`, câu chữ trong `src/shared/i18n/`, và `cheat-tool.ts` vẫn là file TypeScript sống. Boot không vẽ bàn quay. `main.ts` không gọi cheat tool. Cắt khi lát engine Goal thay chỗ đó.
