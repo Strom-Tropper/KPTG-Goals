@@ -68,6 +68,13 @@ export const en = {
         turbo: "TURBO",
         winAmount: "WIN AMOUNT",
     },
+    goal: {
+        balance: "Balance",
+        betLevel: "Bet Level",
+        cashout: "CASHOUT",
+        play: "PLAY",
+        random: "RANDOM",
+    },
     settings: {
         music: "MUSIC",
         sound: "SOUND",

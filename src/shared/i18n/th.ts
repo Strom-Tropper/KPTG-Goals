@@ -58,6 +58,13 @@ export const th = {
         turbo: "TURBO",
         winAmount: "WIN AMOUNT",
     },
+    goal: {
+        balance: "ยอดเงิน",
+        betLevel: "ระดับเดิมพัน",
+        cashout: "รับเงิน",
+        play: "เล่น",
+        random: "สุ่ม",
+    },
     settings: {
         music: "MUSIC",
         sound: "SOUND",

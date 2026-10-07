@@ -2,7 +2,7 @@
 
 Push your luck. Sói đói vượt bẫy của thợ săn để bắt cừu. RTP ước tính 97%. Cảm giác chơi tham chiếu [Spribe Goal](https://spribe.co/games/goal). Sản phẩm này là một bàn cố định, không có Field Small / Medium / Large, không có Auto Game, không có mức cược USD 0.10–100.
 
-Bàn quay slot đã xóa. `GameScene` đang là nền xanh. Engine và socket slot còn trên đĩa. Số trong file này lấy từ rule và wireframe `Flow UI / Wireframe C-HUW-59`. Chưa ghi vào `settings.ts`.
+Bàn quay slot đã xóa. `GameScene` gọi `goalEngine` rồi `GoalBoard` vẽ. Engine và socket slot còn trên đĩa. Số bàn, B Level, hệ số, và 30 giây nằm ở `src/modules/game/engine/goal-constants.ts`. Luật nằm ở `goal-engine.ts` và ghi vào `goalState`. Tiền trên CASHOUT là B Level nhân hệ số của cột vừa đi qua. Sau cột 1, mức `1,000,000` thành `1,290,000`.
 
 ## Bàn
 
@@ -46,7 +46,7 @@ Bắt đầu khi bấm PLAY.
 - Mỗi lượt đếm ngược 30 giây.
 - Người chơi chọn 1 trong 4 ô của cột đó, hoặc bấm RANDOM.
 
-RANDOM và hết giờ cùng một đường: chọn một ô ngẫu nhiên trong cột đang sáng. Nguồn random là tham số đưa vào engine, không gọi `Math.random` trong scene.
+RANDOM chọn một ô trong cột đang sáng. Hết 30 giây thì rút số đang hiện trên CASHOUT về balance và về STANDBY, kể cả lượt đầu. Nguồn random là tham số đưa vào engine.
 
 ## Kết quả một lượt
 
@@ -54,7 +54,7 @@ RANDOM và hết giờ cùng một đường: chọn một ô ngẫu nhiên tron
 
 **An toàn.** Tiền thắng hiện tại ghi lên nút CASHOUT. Sáng cột kế tiếp và hệ số của cột đó. CASHOUT mở, người chơi được rút.
 
-Wireframe sau bước 1, B Level `1,000,000`: cột 1 đã mở (một bom, một bóng), cột 2 sáng, nhãn `1.29x` và `1.72x`, CASHOUT hiện `1,720,000`. Số đó bằng `1,000,000 × 1.72`. Tiền trên nút là B Level nhân hệ số của bước vừa sống sót.
+Tiền trên nút là B Level nhân hệ số của cột vừa đi qua. Qua cột 1 thì `1,000,000` thành `1,290,000`. Wireframe vẽ `1,720,000` cạnh nhãn `1.72x` khi cột 2 đang sáng. Bảng hệ số trong rule lấy `1.29` cho cột 1.
 
 ## Ván kết thúc
 
@@ -63,7 +63,7 @@ Wireframe sau bước 1, B Level `1,000,000`: cột 1 đã mở (một bom, mộ
 | Dính bẫy | Sói chết, về STANDBY |
 | Bấm CASHOUT | Nhận tiền đang hiện trên nút, về STANDBY |
 | Sống sót cột 7 | Tự cashout ở hệ số 7.26 |
-| Hết 30 giây | Không kết thúc ván. Tự bấm RANDOM cho lượt đó |
+| Hết 30 giây | Rút số trên CASHOUT về balance, về STANDBY. Lượt đầu số đó là 0 |
 
 Lượt đầu không được cashout. Sau ô an toàn đầu tiên mới rút được.
 
@@ -92,9 +92,9 @@ Không bịa thêm.
 ## Lát làm
 
 1. Docker và nền xanh. Đã xong.
-2. Hằng số bàn, B Level, hệ số, 30 giây. Để trong `src/shared/constants/` khi bắt đầu code. Chưa viết ở lát plan này.
-3. Engine thuần: pha STANDBY hoặc GAME, cột hiện tại, chọn một ô trong cột đó, an toàn hoặc bẫy khi đã có kết quả, tiền trên CASHOUT, về STANDBY. Random nhận một nguồn từ ngoài.
-4. Scene vẽ lưới 7×4, B Level, PLAY. Một cú PLAY đổi một pha.
+2. Hằng số bàn, B Level, hệ số, 30 giây. Đã nằm ở `src/shared/constants/goal.ts`.
+3. Engine thuần. Nằm ở `src/modules/game/engine/goal-engine.ts`. Kết quả an toàn hoặc bẫy là tham số. `RandomSlot` nhận một số trong khoảng 0 đến 1.
+4. Scene vẽ bàn theo wireframe: lưới 7×4, cột sáng, bom và bóng, hệ số, thanh ngang và thanh dọc. Khung mở là ảnh giữa ván. CASHOUT trên khung đó về STANDBY, chưa cộng tiền.
 5. Trong ván: sáng cột, RANDOM, CASHOUT khóa rồi mở, một ô chọn đổi một kết quả.
 6. Đếm 30 giây. Hết giờ thì cùng đường với RANDOM.
 7. Cột 7 an toàn thì tự cashout.
@@ -102,7 +102,7 @@ Không bịa thêm.
 
 ## Việc đã xóa
 
-Bàn quay, bonus, map, spine slot, HUD slot, `LoadingView`, art slot, `public/assets`, `dist`, folder `mockup/`, và `scripts/generate-wheel-symbol-masks.mjs`. Hình Goal đang ở `raw-assets/background{m}{copy}/` và `raw-assets/icons{m}{copy}/`. Chưa chạy assetpack.
+Bàn quay, bonus, map, spine slot, HUD slot, `LoadingView`, art slot, `public/assets`, `dist`, folder `mockup/`, và `scripts/generate-wheel-symbol-masks.mjs`. Hình Goal đang ở `raw-assets/background{m}{copy}/`, `raw-assets/icons{m}{copy}/`, và `raw-assets/board{m}{copy}/`. Ô có 3 màu: `cell-normal`, `cell-active`, `cell-explode`. Icon trên ô: `mark-ball`, `mark-bomb`, `mark-explode`, `mark-bullet`. Nút có `normal`, `hover`, `active`. Chưa chạy assetpack. Bàn nạp SVG trực tiếp.
 
 ## Chưa comment
 

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+    <defs>
+        <linearGradient id="cell-normal" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#c5d7a8"/>
+            <stop offset="1" stop-color="#8eae6a"/>
+        </linearGradient>
+    </defs>
+    <rect x="3" y="3" width="122" height="122" rx="16" fill="url(#cell-normal)" stroke="#e7f0dc" stroke-width="6"/>
+</svg>
