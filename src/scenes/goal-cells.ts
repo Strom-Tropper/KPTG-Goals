@@ -1,5 +1,5 @@
 import { Container, Rectangle, Sprite, Texture } from "pixi.js";
-import type { GoalCellFace } from "@/modules/game/engine/goal-types";
+import type { GoalCellFace, GoalCellMark, GoalCellTile } from "@/modules/game/engine/goal-types";
 import type { GoalBoardArt } from "@/scenes/goal-board-art";
 
 export function goalCell(
@@ -12,7 +12,7 @@ export function goalCell(
 ): Container {
     const root = new Container();
     root.position.set(x, y);
-    const tile = new Sprite(tileTexture(art, face));
+    const tile = new Sprite(tileTexture(art, face.tile));
     tile.width = size;
     tile.height = size;
     root.addChild(tile);
@@ -23,16 +23,7 @@ export function goalCell(
         root.on("pointertap", onPress);
     }
 
-    const mark =
-        face === "bomb"
-            ? art.bomb
-            : face === "ball"
-              ? art.ball
-              : face === "explode"
-                ? art.explode
-                : face === "bullet"
-                  ? art.bullet
-                  : null;
+    const mark = markTexture(art, face.mark);
     if (mark) {
         const icon = new Sprite(mark);
         const iconSize = size * 0.62;
@@ -46,8 +37,16 @@ export function goalCell(
     return root;
 }
 
-function tileTexture(art: GoalBoardArt, face: GoalCellFace): Texture {
-    if (face === "explode") return art.cellExplode;
-    if (face === "active") return art.cellActive;
+function tileTexture(art: GoalBoardArt, tile: GoalCellTile): Texture {
+    if (tile === "explode") return art.cellExplode;
+    if (tile === "active") return art.cellActive;
     return art.cellNormal;
+}
+
+function markTexture(art: GoalBoardArt, mark: GoalCellMark): Texture | null {
+    if (mark === "explode") return art.explode;
+    if (mark === "bomb") return art.bomb;
+    if (mark === "ball") return art.ball;
+    if (mark === "bullet") return art.bullet;
+    return null;
 }

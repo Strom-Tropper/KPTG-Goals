@@ -1,9 +1,11 @@
 import { Container, Graphics, Text } from "pixi.js";
 import {
+    betMenu,
     betStepper,
     circleButton,
     goalLabel,
     labeledButton,
+    valueReadout,
 } from "@/components/GoalControls";
 import {
     GOAL_COLUMN_COUNT,
@@ -14,9 +16,69 @@ import {
     GOAL_BACKGROUND,
     GOAL_FRAME,
     GOAL_INK,
+    GOAL_INK_MUTED,
+    GOAL_KNOB,
+    GOAL_KNOB_EDGE,
 } from "@/shared/constants/goal";
 import { goalCell } from "@/scenes/goal-cells";
 import type { GoalBoardArt } from "@/scenes/goal-board-art";
+
+type BoxControl = {
+    w: number;
+    h: number;
+    gapLeft: number;
+    gapRight: number;
+    gapTop: number;
+    gapBottom: number;
+};
+//board cells size and gap
+const boardCells = {
+    size: 1,
+    gap: 0.06,
+    pad: 0.18,
+};
+
+const railControls: {
+    size: { ratio: number; min: number; max: number };
+    timer: BoxControl;
+    sound: BoxControl;
+    history: BoxControl;
+    info: BoxControl;
+} = {
+    // rail size and gap
+    size: { ratio: 0.053, min: 28, max: 48 },
+    timer: { w: 1.25, h: 1.25, gapLeft: 15, gapRight: 0, gapTop: 0, gapBottom: 27 },
+    sound: { w: 1, h: 1, gapLeft: 25, gapRight: 0, gapTop: 0, gapBottom: 9 },
+    history: { w: 1, h: 1, gapLeft: 25, gapRight: 0, gapTop: 0, gapBottom: 9 },
+    info: { w: 1, h: 1, gapLeft: 25, gapRight: 0, gapTop: 0, gapBottom: 0 },
+};
+
+const bottomControls: {
+    height: { ratio: number; min: number; max: number };
+    portrait: { ratio: number; min: number; max: number };
+    balance: BoxControl;
+    random: BoxControl;
+    play: BoxControl;
+    reset: BoxControl;
+    bet: BoxControl & { knobRatio: number; knobGap: number };
+} = {
+    height: { ratio: 0.068, min: 44, max: 64 },
+    portrait: { ratio: 0.09, min: 42, max: 58 },
+    balance: { w: 2.05, h: 1, gapLeft: 0, gapRight: 50, gapTop: 25, gapBottom: 0 },
+    random: { w: 1.5, h: 1, gapLeft: 0, gapRight: 8, gapTop: 25, gapBottom: 0 },
+    play: { w: 2.15, h: 1, gapLeft: 0, gapRight: 8, gapTop: 25, gapBottom: 0 },
+    reset: { w: 1, h: 1, gapLeft: 50, gapRight: 8, gapTop: 25, gapBottom: 0 },
+    bet: {
+        w: 2.2,
+        h: 1,
+        gapLeft: 0,
+        gapRight: 0,
+        gapTop: 25,
+        gapBottom: 0,
+        knobRatio: 0.72,
+        knobGap: 0.16,
+    },
+};
 
 export type { GoalCellFace };
 
@@ -24,10 +86,7 @@ export type GoalBoardModel = {
     width: number;
     height: number;
     cells: GoalCellFace[][];
-    pastColumn: number | null;
-    nextColumn: number | null;
-    pastMultiplier: string | null;
-    nextMultiplier: string | null;
+    multipliers: GoalMultiplierMark[];
     secondsLeft: number | null;
     balanceText: string;
     balanceDetail: string | null;
@@ -36,14 +95,29 @@ export type GoalBoardModel = {
     mainLabel: string;
     mainDetail: string | null;
     mainEnabled: boolean;
-    betCaption: string;
-    betText: string;
-    betEnabled: boolean;
+    betLines: string[];
+    betSelectable: boolean;
+    betListOpen: boolean;
+    betChoices: { text: string; selected: boolean }[];
+    minusEnabled: boolean;
+    plusEnabled: boolean;
+    resetText: string;
+    resetEnabled: boolean;
+    historyEnabled: boolean;
     notice: string | null;
+};
+
+export type GoalMultiplierMark = {
+    column: number;
+    text: string;
+    passed: boolean;
 };
 
 export type GoalBoardActions = {
     onBet: (direction: -1 | 1) => void;
+    onOpenBetList: () => void;
+    onChooseBet: (index: number) => void;
+    onResetBet: () => void;
     onMain: () => void;
     onPick: (slot: number) => void;
     onRandom: () => void;
@@ -86,65 +160,47 @@ export class GoalBoard extends Container {
     }
 
     private drawLandscape(model: GoalBoardModel, art: GoalBoardArt): void {
-        const margin = Math.round(Math.min(model.width, model.height) * 0.045);
-        const buttonH = Math.round(
-            Math.min(68, Math.max(48, model.height * 0.072)),
-        );
-        const captionH = Math.round(buttonH * 0.42);
-        const bottom = buttonH + captionH + margin;
-        const top = Math.round(model.height * 0.1);
-        const grid = fitGrid(
-            model.width - margin * 2,
-            model.height - top - bottom,
-        );
-        const gridX = margin + (model.width - margin * 2 - grid.outerW) / 2;
-        const gridY = top + (model.height - top - bottom - grid.outerH) / 2;
+        const edge = Math.round(Math.min(model.width, model.height) * 0.03);
+        const baseH = controlHeight(model.height, bottomControls.height);
+        const band = bottomBand(baseH);
+        const railBase = controlHeight(Math.min(model.width, model.height), railControls.size);
+        const top = Math.round(baseH * 0.78);
+        const frameRightMax = model.width - edge - railSpan(railBase);
+        const grid = fitGrid(frameRightMax - edge, model.height - edge - band - top);
+        const gridX = edge;
+        const gridY = top;
+        const frameRight = gridX + grid.outerW;
+        const boardBottom = gridY + grid.outerH;
 
         this.drawGrid(gridX, gridY, grid, model.cells, art);
         this.drawMultipliers(gridX, gridY, grid, model);
-        this.drawCornerMarks(
-            model.width - margin,
-            margin + buttonH * 0.28,
-            buttonH * 0.34,
-            art,
-        );
+        this.drawSideRail(model, art, frameRight, gridY);
         this.drawNotice(
             model,
-            model.width / 2,
-            margin + buttonH * 0.28,
-            Math.max(16, Math.round(buttonH * 0.34)),
+            gridX + grid.outerW / 2,
+            edge * 0.7,
+            Math.max(16, Math.round(baseH * 0.32)),
         );
 
-        const rowY = model.height - margin - buttonH;
-        const gap = Math.round(buttonH * 0.28);
-        const balanceW = Math.round(model.width * 0.2);
-        const randomW = Math.round(model.width * 0.11);
-        const mainW = Math.round(model.width * 0.15);
-        const betW = Math.round(model.width * 0.2);
-        let x = margin;
-
+        const row = placeBottomRow(gridX, grid.outerW, boardBottom, baseH);
+        const betMetrics = betControlMetrics(row.bet.height);
         this.addChild(
-            labeledButton(
-                x,
-                rowY,
-                balanceW,
-                buttonH,
+            valueReadout(
+                row.balance.x,
+                row.balance.y,
+                row.balance.width,
+                row.balance.height,
                 model.balanceDetail
                     ? [model.balanceText, model.balanceDetail]
                     : [model.balanceText],
-                false,
-                () => undefined,
-                false,
-                art.button,
             ),
         );
-        x += balanceW + gap;
         this.addChild(
             labeledButton(
-                x,
-                rowY,
-                randomW,
-                buttonH,
+                row.random.x,
+                row.random.y,
+                row.random.width,
+                row.random.height,
                 [model.randomText],
                 model.randomEnabled,
                 this.actions.onRandom,
@@ -152,19 +208,12 @@ export class GoalBoard extends Container {
                 art.button,
             ),
         );
-        this.drawTurnClock(
-            model,
-            x + randomW / 2,
-            rowY - Math.round(buttonH * 0.42),
-            Math.round(buttonH * 0.36),
-        );
-        x += randomW + gap;
         this.addChild(
             labeledButton(
-                x,
-                rowY,
-                mainW,
-                buttonH,
+                row.play.x,
+                row.play.y,
+                row.play.width,
+                row.play.height,
                 model.mainDetail
                     ? [model.mainLabel, model.mainDetail]
                     : [model.mainLabel],
@@ -174,64 +223,72 @@ export class GoalBoard extends Container {
                 art.button,
             ),
         );
-
+        this.addChild(
+            labeledButton(
+                row.reset.x,
+                row.reset.y,
+                row.reset.width,
+                row.reset.height,
+                [model.resetText],
+                model.resetEnabled,
+                this.actions.onResetBet,
+                !model.resetEnabled,
+                art.button,
+            ),
+        );
         this.addChild(
             betStepper(
-                model.width - margin - betW,
-                rowY - captionH,
-                betW,
-                buttonH,
-                captionH,
-                model.betCaption,
-                model.betText,
-                model.betEnabled,
+                row.bet.x,
+                row.bet.y,
+                row.bet.width,
+                row.bet.height,
+                model.betLines,
+                model.minusEnabled,
+                model.plusEnabled,
                 this.actions.onBet,
+                model.betSelectable ? this.actions.onOpenBetList : null,
                 art,
+                betMetrics,
             ),
+        );
+        this.drawBetMenu(
+            model,
+            row.bet.x,
+            row.bet.y,
+            row.bet.width,
+            row.bet.height,
+            frameRight,
         );
     }
 
     private drawPortrait(model: GoalBoardModel, art: GoalBoardArt): void {
-        const margin = Math.round(model.width * 0.06);
-        const buttonH = Math.round(
-            Math.min(58, Math.max(42, model.width * 0.09)),
-        );
-        const captionH = Math.round(buttonH * 0.46);
+        const edge = Math.round(model.width * 0.05);
+        const buttonH = controlHeight(model.width, bottomControls.portrait);
+        const railBase = controlHeight(Math.min(model.width, model.height), railControls.size);
         const gap = Math.round(buttonH * 0.28);
-        const controlsH = buttonH * 3 + captionH + gap * 3;
-        const top = margin + buttonH;
+        const controlsH = buttonH * 4 + gap * 3;
+        const top = Math.round(buttonH * 0.7);
+        const frameRightMax = model.width - edge - railSpan(railBase);
         const grid = fitGrid(
-            model.width - margin * 2,
-            model.height - top - controlsH - margin,
+            frameRightMax - edge,
+            model.height - top - controlsH - edge,
         );
-        const gridX = margin + (model.width - margin * 2 - grid.outerW) / 2;
-        const gridY =
-            top + (model.height - top - controlsH - margin - grid.outerH) / 2;
+        const gridX = edge;
+        const gridY = top;
 
         this.drawGrid(gridX, gridY, grid, model.cells, art);
         this.drawMultipliers(gridX, gridY, grid, model);
-        this.drawCornerMarks(
-            model.width - margin,
-            margin + buttonH * 0.2,
-            buttonH * 0.32,
-            art,
-        );
+        this.drawSideRail(model, art, gridX + grid.outerW, gridY);
         this.drawNotice(
             model,
             model.width / 2,
-            margin + buttonH * 0.2,
+            edge * 0.7,
             Math.max(14, Math.round(buttonH * 0.32)),
         );
 
         const buttonW = Math.round(grid.outerW * 0.46);
         const centerX = model.width / 2 - buttonW / 2;
         let y = gridY + grid.outerH + gap * 2;
-        this.drawTurnClock(
-            model,
-            model.width / 2,
-            y - Math.round(buttonH * 0.42),
-            Math.round(buttonH * 0.36),
-        );
         this.addChild(
             labeledButton(
                 centerX,
@@ -261,12 +318,27 @@ export class GoalBoard extends Container {
                 art.button,
             ),
         );
-        y += buttonH + gap + captionH;
-
-        const balanceW = Math.round(grid.outerW * 0.46);
-        const betW = Math.round(grid.outerW * 0.46);
+        y += buttonH + gap;
         this.addChild(
             labeledButton(
+                centerX,
+                y,
+                buttonW,
+                buttonH,
+                [model.resetText],
+                model.resetEnabled,
+                this.actions.onResetBet,
+                !model.resetEnabled,
+                art.button,
+            ),
+        );
+        y += buttonH + gap;
+
+        const balanceW = Math.round(grid.outerW * 0.46);
+        const betW = Math.round(grid.outerW * 0.5);
+        const betX = gridX + grid.outerW - betW;
+        this.addChild(
+            valueReadout(
                 gridX,
                 y,
                 balanceW,
@@ -274,26 +346,24 @@ export class GoalBoard extends Container {
                 model.balanceDetail
                     ? [model.balanceText, model.balanceDetail]
                     : [model.balanceText],
-                false,
-                () => undefined,
-                false,
-                art.button,
             ),
         );
         this.addChild(
             betStepper(
-                gridX + grid.outerW - betW,
-                y - captionH,
+                betX,
+                y,
                 betW,
                 buttonH,
-                captionH,
-                model.betCaption,
-                model.betText,
-                model.betEnabled,
+                model.betLines,
+                model.minusEnabled,
+                model.plusEnabled,
                 this.actions.onBet,
+                model.betSelectable ? this.actions.onOpenBetList : null,
                 art,
+                betControlMetrics(buttonH),
             ),
         );
+        this.drawBetMenu(model, betX, y, betW, buttonH, gridX + grid.outerW);
     }
 
     private drawGrid(
@@ -314,12 +384,15 @@ export class GoalBoard extends Container {
 
         for (let column = 0; column < GOAL_COLUMN_COUNT; column += 1) {
             for (let row = 0; row < GOAL_SLOT_COUNT; row += 1) {
-                const face = cells[column]?.[row] ?? "normal";
+                const face = cells[column]?.[row] ?? {
+                    tile: "normal" as const,
+                    mark: "none" as const,
+                };
                 const x = originX + column * (grid.cell + grid.gap);
                 const y = originY + row * (grid.cell + grid.gap);
                 const slot = row;
                 const onPress =
-                    face === "active"
+                    face.tile === "active"
                         ? () => this.actions.onPick(slot)
                         : undefined;
                 this.addChild(goalCell(art, face, x, y, grid.cell, onPress));
@@ -336,20 +409,17 @@ export class GoalBoard extends Container {
         const fontSize = Math.max(14, Math.round(grid.cell * 0.2));
         const y = gridY - fontSize * 0.85;
 
-        if (model.pastColumn !== null && model.pastMultiplier) {
-            const x = columnCenter(gridX, grid, model.pastColumn);
-            const rule = new Graphics();
-            rule
-                .moveTo(x - fontSize * 3.1, y)
-                .lineTo(x - fontSize * 1.7, y)
-                .stroke({ color: GOAL_INK, width: Math.max(1, fontSize * 0.08) });
-            this.addChild(rule);
-            this.addChild(goalLabel(model.pastMultiplier, x, y, fontSize));
-        }
-
-        if (model.nextColumn !== null && model.nextMultiplier) {
-            const x = columnCenter(gridX, grid, model.nextColumn);
-            this.addChild(goalLabel(model.nextMultiplier, x, y, fontSize));
+        for (const mark of model.multipliers) {
+            const x = columnCenter(gridX, grid, mark.column);
+            this.addChild(
+                goalLabel(
+                    mark.text,
+                    x,
+                    y,
+                    fontSize,
+                    mark.passed ? GOAL_INK_MUTED : GOAL_INK,
+                ),
+            );
         }
     }
 
@@ -357,8 +427,10 @@ export class GoalBoard extends Container {
         const clock = this.clock;
         if (!clock) return;
 
-        clock.visible = seconds !== null;
-        if (seconds !== null) clock.text = String(seconds);
+        if (seconds === null) return;
+
+        clock.visible = true;
+        clock.text = String(seconds);
     }
 
     private drawNotice(
@@ -372,35 +444,76 @@ export class GoalBoard extends Container {
         this.addChild(goalLabel(model.notice, x, y, fontSize));
     }
 
-    private drawTurnClock(model: GoalBoardModel, x: number, y: number, fontSize: number): void {
+    private drawSideRail(
+        model: GoalBoardModel,
+        art: GoalBoardArt,
+        frameRight: number,
+        frameTop: number,
+    ): void {
+        const base = controlHeight(Math.min(model.width, model.height), railControls.size);
+        const rail = placeRail(frameRight, frameTop, base);
+        this.drawTimerKnob(model, rail.timer);
+        this.addChild(circleButton(rail.sound.cx, rail.sound.cy, rail.sound.width, rail.sound.height, art.sound));
+        this.addChild(
+            circleButton(
+                rail.history.cx,
+                rail.history.cy,
+                rail.history.width,
+                rail.history.height,
+                art.history,
+                model.historyEnabled,
+            ),
+        );
+        this.addChild(circleButton(rail.info.cx, rail.info.cy, rail.info.width, rail.info.height, art.info));
+    }
+
+    private drawTimerKnob(model: GoalBoardModel, knobBox: RailRect): void {
+        const knob = new Graphics();
+        knob
+            .ellipse(0, 0, knobBox.width / 2, knobBox.height / 2)
+            .fill({ color: GOAL_KNOB })
+            .stroke({
+                color: GOAL_KNOB_EDGE,
+                width: Math.max(2, Math.min(knobBox.width, knobBox.height) * 0.06),
+            });
+        knob.position.set(knobBox.cx, knobBox.cy);
+        this.addChild(knob);
         const clock = goalLabel(
             model.secondsLeft === null ? "" : String(model.secondsLeft),
-            x,
-            y,
-            fontSize,
+            knobBox.cx,
+            knobBox.cy,
+            Math.max(12, Math.round(Math.min(knobBox.width, knobBox.height) * 0.34)),
         );
         clock.visible = model.secondsLeft !== null;
         this.clock = clock;
         this.addChild(clock);
     }
 
-    private drawCornerMarks(
-        right: number,
-        y: number,
-        radius: number,
-        art: GoalBoardArt,
+    private drawBetMenu(
+        model: GoalBoardModel,
+        anchorX: number,
+        anchorY: number,
+        anchorW: number,
+        buttonH: number,
+        maxRight: number,
     ): void {
-        const gap = radius * 2.5;
-        const diameter = radius * 2;
+        if (!model.betListOpen) return;
+
+        const rowH = Math.round(buttonH * 0.72);
+        const width = Math.min(Math.max(anchorW, 260), Math.max(anchorW, maxRight - 8));
+        const height = 16 + rowH * model.betChoices.length;
+        const x = Math.max(8, Math.min(anchorX, maxRight - width));
+        const y = Math.max(8, anchorY - height - Math.round(buttonH * 0.18));
         this.addChild(
-            circleButton(
-                right - diameter - gap - radius,
+            betMenu(
+                x,
                 y,
-                diameter,
-                art.info,
+                width,
+                rowH,
+                model.betChoices,
+                this.actions.onChooseBet,
             ),
         );
-        this.addChild(circleButton(right - radius, y, diameter, art.sound));
     }
 }
 
@@ -413,14 +526,12 @@ type GridFit = {
 };
 
 function fitGrid(maxW: number, maxH: number): GridFit {
-    const gapRatio = 0.06;
-    const padRatio = 0.08;
+    const gapRatio = boardCells.gap;
+    const padRatio = boardCells.pad;
     const widthUnits = GOAL_COLUMN_COUNT + (GOAL_COLUMN_COUNT - 1) * gapRatio + padRatio * 2;
     const heightUnits = GOAL_SLOT_COUNT + (GOAL_SLOT_COUNT - 1) * gapRatio + padRatio * 2;
-    const cell = Math.max(
-        16,
-        Math.floor(Math.min(maxW / widthUnits, maxH / heightUnits)),
-    );
+    const fitted = Math.floor(Math.min(maxW / widthUnits, maxH / heightUnits));
+    const cell = Math.max(16, Math.floor(fitted * boardCells.size));
     const gap = Math.max(4, Math.round(cell * gapRatio));
     const pad = Math.max(6, Math.round(cell * padRatio));
 
@@ -430,6 +541,141 @@ function fitGrid(maxW: number, maxH: number): GridFit {
         pad,
         outerW: GOAL_COLUMN_COUNT * cell + (GOAL_COLUMN_COUNT - 1) * gap + pad * 2,
         outerH: GOAL_SLOT_COUNT * cell + (GOAL_SLOT_COUNT - 1) * gap + pad * 2,
+    };
+}
+type ButtonRect = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
+type RailRect = {
+    cx: number;
+    cy: number;
+    width: number;
+    height: number;
+};
+
+function railBoxes(): BoxControl[] {
+    return [
+        railControls.timer,
+        railControls.sound,
+        railControls.history,
+        railControls.info,
+    ];
+}
+
+function railSpan(base: number): number {
+    return Math.max(
+        ...railBoxes().map(
+            (box) => box.gapLeft + Math.max(1, Math.round(base * box.w) - box.gapRight),
+        ),
+    );
+}
+
+function placeRail(frameRight: number, frameTop: number, base: number): {
+    timer: RailRect;
+    sound: RailRect;
+    history: RailRect;
+    info: RailRect;
+} {
+    const boxes = railBoxes();
+    const widths = boxes.map((box) => Math.max(1, Math.round(base * box.w) - box.gapRight));
+    const heights = boxes.map((box) => Math.max(1, Math.round(base * box.h)));
+    const placed: RailRect[] = [];
+    let y = frameTop;
+    boxes.forEach((box, index) => {
+        const width = widths[index];
+        const height = heights[index];
+        y += box.gapTop;
+        const x = frameRight + box.gapLeft;
+        placed.push({
+            cx: x + width / 2,
+            cy: y + height / 2,
+            width,
+            height,
+        });
+        y += height + box.gapBottom;
+    });
+    return {
+        timer: placed[0],
+        sound: placed[1],
+        history: placed[2],
+        info: placed[3],
+    };
+}
+
+function controlHeight(
+    screen: number,
+    band: { ratio: number; min: number; max: number },
+): number {
+    return Math.round(
+        Math.min(band.max, Math.max(band.min, screen * band.ratio)),
+    );
+}
+
+function betControlMetrics(buttonH: number): { knob: number; gap: number } {
+    return {
+        knob: buttonH * bottomControls.bet.knobRatio,
+        gap: Math.round(buttonH * bottomControls.bet.knobGap),
+    };
+}
+
+function bottomBoxes(): BoxControl[] {
+    return [
+        bottomControls.balance,
+        bottomControls.random,
+        bottomControls.play,
+        bottomControls.reset,
+        bottomControls.bet,
+    ];
+}
+
+function bottomBand(baseH: number): number {
+    return Math.max(
+        ...bottomBoxes().map((box) => box.gapTop + Math.round(baseH * box.h)),
+    );
+}
+
+function placeBottomRow(
+    boardX: number,
+    boardWidth: number,
+    boardBottom: number,
+    baseH: number,
+): {
+    balance: ButtonRect;
+    random: ButtonRect;
+    play: ButtonRect;
+    reset: ButtonRect;
+    bet: ButtonRect;
+} {
+    const boxes = bottomBoxes();
+    const gapSum = boxes.reduce((sum, box) => sum + box.gapLeft + box.gapRight, 0);
+    const wSum = boxes.reduce((sum, box) => sum + box.w, 0);
+    const unit = Math.max(0, boardWidth - gapSum) / wSum;
+    const widths = boxes.map((box) => Math.max(1, Math.round(box.w * unit)));
+    const used = widths.reduce((sum, width) => sum + width, 0) + gapSum;
+    widths[widths.length - 1] = Math.max(1, widths[widths.length - 1] + boardWidth - used);
+
+    const placed: ButtonRect[] = [];
+    let x = boardX;
+    boxes.forEach((box, index) => {
+        x += box.gapLeft;
+        placed.push({
+            x,
+            y: boardBottom + box.gapTop,
+            width: widths[index],
+            height: Math.max(1, Math.round(baseH * box.h) - box.gapBottom),
+        });
+        x += widths[index] + box.gapRight;
+    });
+    return {
+        balance: placed[0],
+        random: placed[1],
+        play: placed[2],
+        reset: placed[3],
+        bet: placed[4],
     };
 }
 

@@ -70,10 +70,11 @@ export const en = {
     },
     goal: {
         balance: "Balance",
-        betLevel: "Bet Level",
+        betLevel: "Bet Level {level}",
         cashout: "CASHOUT",
         play: "PLAY",
         random: "RANDOM",
+        resetBet: "Reset Bet",
         insufficientBalance: "Not enough balance",
         invalidState: "Choose a bet first",
         invalidSlot: "Pick an open cell",

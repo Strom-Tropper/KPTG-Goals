@@ -51,15 +51,15 @@ Scene không tự nhớ ván. `goalEngine` ghi vào `goalState` rồi bắn `goa
 
 | File | Ý nghĩa |
 | --- | --- |
-| `goal-types.ts` | Kiểu ván `standby` / `playing`, ô đã đi, kết quả PLAY và pick, mặt ô |
-| `goal-state.ts` | Object `goalState`: ván hiện tại, mảng mặt ô, mã lỗi gần nhất |
-| `goal-constants.ts` | 7 cột, 4 ô, 30 giây, danh sách B Level, hệ số, mã lỗi, chữ `1.29x` |
-| `goal-events.ts` | `goalEvents` và tên sự kiện: đổi bet, PLAY, pick, cashout, về standby, lỗi |
+| `goal-types.ts` | Kiểu ván `standby` / `playing` / `ended`, ô đã đi, kết quả PLAY và pick, mặt ô |
+| `goal-state.ts` | Object `goalState`: ván hiện tại, mảng mặt ô, mã lỗi, khóa giữ bàn, danh sách bet đang mở, số giây còn lại |
+| `goal-constants.ts` | 7 cột, 4 ô, 30 giây cho cả ván, danh sách B Level, hệ số, mã lỗi, chữ `1.29x` |
+| `goal-events.ts` | `goalEvents` và tên sự kiện: đổi bet, PLAY, pick, cashout, về standby, lỗi, khóa giữ bàn, danh sách bet, số giây |
 | `goal-errors.ts` | Đổi lý do thất bại thành mã: không đủ tiền, sai pha, sai ô |
 | `goal-assets.ts` | Tên file hình bàn (`cell-normal`, `mark-bomb`, …). Không nạp texture, không import Pixi |
 | `goal-engine.ts` | Object `goalEngine`. Đổi bet, PLAY, pick, cashout, hết giờ. Ghi `goalState` và bắn `goalEvents` |
 
-`goalEngine` có các việc: `ChangeBetLevel`, `CanChangeBet`, `CanPlay`, `CanRandom`, `CanCashout`, `Play`, `Pick`, `Cashout`, `TakeCashout`, `ApplyRound`, `RandomSlot`.
+`goalEngine` có các việc: `ChangeBetLevel`, `CanChangeBet`, `CanReset`, `ResetBet`, `CanDecreaseBet`, `CanIncreaseBet`, `BetLevelNumber`, `CanPlay`, `CanRandom`, `CanCashout`, `IsPresentationLocked`, `SetPresentationLocked`, `ToggleBetList`, `SecondsLeft`, `SetSecondsLeft`, `Play`, `Pick`, `Cashout`, `TakeCashout`, `ApplyRound`, `RandomSlot`. Mức bet là 1 đến 7. Mức 1 không trừ, mức 7 không cộng. STANDBY khóa Reset Bet. Hết ván vào `ended`: bàn giữ nguyên, PLAY và Reset Bet bật. PLAY bắt đầu ván mới. Reset Bet về STANDBY, giữ bàn và mức bet. Nút bet bật, PLAY khóa đến khi chọn lại mức. PLAY mới xóa bàn và mở ván mới. Hết 30 giây khi chưa đi ô nào là thua, mọi ô nền hồng. Chưa chốt cách xử lý khi hết ván mà số dư không đủ mức bet. Đã qua cột thì hết giờ tự cashout. Đồng hồ 30 giây đếm một lần cho cả ván, từ lúc PLAY.
 
 Số dư người chơi vẫn là `gameState.balance` trong `game.state.ts`. `GameScene` trừ và cộng số đó. Khi số dư đang 0, scene gán ví chơi thử để bấm được PLAY.
 
@@ -67,7 +67,7 @@ Màu vẽ bàn (`GOAL_BACKGROUND`, `GOAL_FRAME`, `GOAL_INK`) nằm ở `src/shar
 
 | File màn hình | Ý nghĩa |
 | --- | --- |
-| `GameScene.ts` | Pointer gọi `goalEngine` rồi trả về. Nghe `goalEvents` để vẽ, giữ timer 30 giây và khoảng hiện ô nổ |
+| `GameScene.ts` | Pointer gọi `goalEngine` rồi trả về. Nghe `goalEvents` để vẽ. Scene chạy một interval 30 giây cho cả ván, bắt đầu khi PLAY. Đồng hồ luôn hiện trên cột nút `S` `H` `i` |
 | `GoalBoard.ts` | Chia khung ngang/dọc, lưới 7×4, hệ số trên cột, đồng hồ, hàng nút |
 | `goal-cells.ts` | Một ô: nền theo mặt, icon bóng / bom / nổ / chấm trắng. Ô `active` mới nhận bấm |
 | `goal-board-art.ts` | Nạp đúng tên trong `goal-assets.ts` từ `raw-assets/board{m}{copy}/` bằng `Assets.load` |
@@ -80,7 +80,7 @@ Hình bàn trong `raw-assets/board{m}{copy}/`:
 | 3 màu ô | `cell-normal.svg`, `cell-active.svg`, `cell-explode.svg` |
 | 4 dấu trên ô | `mark-ball.svg`, `mark-bomb.svg`, `mark-explode.svg`, `mark-bullet.svg` |
 | Mặt nút | `button-face.svg`, `button-face-hover.svg`, `button-face-active.svg` |
-| Núm và góc | `button-plus`, `button-minus`, `button-info`, `button-sound`, mỗi cái 3 file thường / hover / active |
+| Núm và góc | `button-plus`, `button-minus`, `button-info`, `button-history`, `button-sound`, mỗi cái 3 file thường / hover / active |
 
 `raw-assets/background{m}{copy}/` có `goal-bg-before.svg` và `goal-bg-after.svg`. Bàn hiện tại chưa gắn hai nền này. `raw-assets/icons{m}{copy}/` là icon slot cũ, không phải núm tròn trên bàn.
 

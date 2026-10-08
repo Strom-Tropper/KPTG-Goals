@@ -3,6 +3,8 @@ import type { Scene } from "@/scenes/Scene";
 import { GoalBoard } from "@/scenes/GoalBoard";
 import { loadGoalBoardArt } from "@/scenes/goal-board-art";
 import {
+    GOAL_BET_LEVELS,
+    GOAL_COLUMN_COUNT,
     GOAL_ERROR_CODES,
     GOAL_TURN_MS,
     goalMultiplierText,
@@ -16,16 +18,13 @@ import { i18n } from "@/shared/i18n/I18nManager";
 import { format } from "@/shared/utils/formatNumber";
 
 const PLAY_PURSE = 50_000_000;
-const BOOM_PAUSE_MS = 1_200;
 
 export class GameScene implements Scene {
     private readonly app: Application<Renderer>;
     private readonly board: GoalBoard;
-    private busy = false;
-    private secondsLeft: number | null = null;
+    private awaitingPointer = false;
     private turnTimer: ReturnType<typeof setInterval> | null = null;
     private turnId = 0;
-    private boomTimer: ReturnType<typeof setTimeout> | null = null;
     private readonly unlisten: Array<() => void> = [];
     private destroyed = false;
 
@@ -38,6 +37,9 @@ export class GameScene implements Scene {
         this.app = app;
         this.board = new GoalBoard({
             onBet: this.onBet,
+            onOpenBetList: this.onOpenBetList,
+            onChooseBet: this.onChooseBet,
+            onResetBet: this.onResetBet,
             onMain: this.onMain,
             onPick: this.onPick,
             onRandom: this.onRandom,
@@ -69,7 +71,6 @@ export class GameScene implements Scene {
         for (const stop of this.unlisten) stop();
         this.unlisten.length = 0;
         this.clearTurnTimer();
-        this.clearBoomTimer();
         this.app.renderer.off("resize", this.paint);
         this.board.destroy({ children: true });
     }
@@ -77,22 +78,26 @@ export class GameScene implements Scene {
     private paint = (): void => {
         const round = goalState.round;
         const playing = round.phase === "playing";
-        const activeColumn = playing ? round.column : null;
+        const shownColumn = round.phase === "standby" ? round.column ?? null : round.column;
+        const multipliers =
+            shownColumn === null
+                ? []
+                : Array.from({ length: shownColumn + 1 }, (_, column) => ({
+                      column,
+                      text: goalMultiplierText(column),
+                      passed: !playing || column < shownColumn,
+                  }));
 
         this.board.show({
             width: this.app.screen.width,
             height: this.app.screen.height,
             cells: goalState.cells,
-            pastColumn: null,
-            nextColumn: activeColumn,
-            pastMultiplier: null,
-            nextMultiplier:
-                activeColumn === null ? null : goalMultiplierText(activeColumn),
-            secondsLeft: this.secondsLeft,
+            multipliers,
+            secondsLeft: goalState.secondsLeft,
             balanceText: i18n.t("goal.balance"),
             balanceDetail: format(gameState.balance),
             randomText: i18n.t("goal.random"),
-            randomEnabled: goalEngine.CanRandom() && !this.busy,
+            randomEnabled: goalEngine.CanRandom(),
             mainLabel: playing
                 ? i18n.t("goal.cashout")
                 : i18n.t("goal.play"),
@@ -100,12 +105,22 @@ export class GameScene implements Scene {
                 playing && round.cashoutAmount > 0
                     ? format(round.cashoutAmount)
                     : null,
-            mainEnabled: playing
-                ? goalEngine.CanCashout() && !this.busy
-                : goalEngine.CanPlay() && !this.busy,
-            betCaption: i18n.t("goal.betLevel"),
-            betText: format(round.betLevel),
-            betEnabled: goalEngine.CanChangeBet() && !this.busy,
+            mainEnabled: playing ? goalEngine.CanCashout() : goalEngine.CanPlay(),
+            betLines: [
+                i18n.t("goal.betLevel", { level: goalEngine.BetLevelNumber() }),
+                format(round.betLevel),
+            ],
+            betSelectable: goalEngine.CanChangeBet(),
+            betListOpen: goalState.betListOpen,
+            betChoices: GOAL_BET_LEVELS.map((amount, index) => ({
+                text: `${i18n.t("goal.betLevel", { level: index + 1 })} : ${format(amount)}`,
+                selected: index === goalEngine.BetLevelNumber() - 1,
+            })),
+            minusEnabled: goalEngine.CanDecreaseBet(),
+            plusEnabled: goalEngine.CanIncreaseBet(),
+            resetText: i18n.t("goal.resetBet"),
+            resetEnabled: goalEngine.CanReset(),
+            historyEnabled: round.phase !== "playing",
             notice: this.notice(),
         });
     };
@@ -120,64 +135,88 @@ export class GameScene implements Scene {
                 this.beginTurn();
                 this.paint();
             }),
+            goalEvents.on(GOAL_EVENT_NAMES.PRESENTATION_LOCK_CHANGED, () => this.paint()),
+            goalEvents.on(GOAL_EVENT_NAMES.BET_LIST_CHANGED, () => this.paint()),
+            goalEvents.on(GOAL_EVENT_NAMES.SECONDS_CHANGED, () => {
+                this.board.setSeconds(goalState.secondsLeft);
+            }),
             goalEvents.on(GOAL_EVENT_NAMES.PICK_RESOLVED, (payload) => {
                 this.onPickResolved(payload as GoalPickResult);
             }),
             goalEvents.on(GOAL_EVENT_NAMES.CASHOUT, (payload) => {
                 const result = payload as GoalPickResult;
                 this.pay(result.cashedOut);
-                goalEngine.ApplyRound(result.round);
+                this.stopRoundClock();
+                this.paint();
             }),
             goalEvents.on(GOAL_EVENT_NAMES.STANDBY, () => {
-                this.clearTurnTimer();
-                this.secondsLeft = null;
+                this.stopRoundClock();
                 this.paint();
             }),
         );
     }
 
     private onBet = (direction: -1 | 1): void => {
-        if (this.busy || !goalEngine.CanChangeBet()) return;
+        if (this.awaitingPointer || !goalEngine.CanChangeBet()) return;
 
         goalEngine.ChangeBetLevel(direction);
     };
 
+    private onOpenBetList = (): void => {
+        if (this.awaitingPointer || !goalEngine.CanChangeBet()) return;
+
+        this.afterPointer(() => goalEngine.ToggleBetList());
+    };
+
+    private onResetBet = (): void => {
+        if (this.awaitingPointer || !goalEngine.CanReset()) return;
+
+        this.afterPointer(() => goalEngine.ResetBet());
+    };
+
+    private onChooseBet = (index: number): void => {
+        if (this.awaitingPointer || !goalEngine.CanChangeBet()) return;
+
+        this.afterPointer(() => goalEngine.SetBetLevel(index));
+    };
+
     private onMain = (): void => {
-        if (this.busy) return;
+        if (this.awaitingPointer || goalEngine.IsPresentationLocked()) return;
 
         this.afterPointer(() => this.pressMain());
     };
 
     private pressMain(): void {
-        if (this.busy) return;
+        if (goalEngine.IsPresentationLocked()) return;
 
         if (goalState.round.phase === "playing") {
             goalEngine.Cashout();
             return;
         }
 
-        goalEngine.Play(gameState.balance, unit());
+        goalEngine.Play(gameState.balance, units(GOAL_COLUMN_COUNT));
     };
 
     private onRandom = (): void => {
-        if (this.busy || !goalEngine.CanRandom()) return;
+        if (this.awaitingPointer || !goalEngine.CanRandom()) return;
 
         const slot = goalEngine.RandomSlot(unit());
         this.afterPointer(() => this.resolvePick(slot));
     };
 
     private onPick = (slot: number): void => {
-        if (this.busy || goalState.round.phase !== "playing") return;
+        if (this.awaitingPointer || goalEngine.IsPresentationLocked()) return;
+        if (goalState.round.phase !== "playing") return;
 
         this.afterPointer(() => this.resolvePick(slot));
     };
 
     private afterPointer(action: () => void): void {
-        this.busy = true;
+        this.awaitingPointer = true;
         requestAnimationFrame(() => {
             if (this.destroyed) return;
 
-            this.busy = false;
+            this.awaitingPointer = false;
             action();
         });
     }
@@ -185,33 +224,17 @@ export class GameScene implements Scene {
     private resolvePick(slot: number): void {
         if (goalState.round.phase !== "playing") return;
 
-        goalEngine.Pick(slot, unit());
+        goalEngine.Pick(slot);
     }
 
     private onPickResolved(result: GoalPickResult): void {
-        this.clearTurnTimer();
-
-        if (result.lost) {
-            this.busy = true;
-            this.secondsLeft = null;
+        if (result.lost || result.cashedOut > 0) {
+            if (result.cashedOut > 0) this.pay(result.cashedOut);
+            this.stopRoundClock();
             this.paint();
-            this.boomTimer = setTimeout(() => {
-                this.boomTimer = null;
-                if (this.destroyed) return;
-
-                this.busy = false;
-                goalEngine.ApplyRound(result.round);
-            }, BOOM_PAUSE_MS);
             return;
         }
 
-        if (result.cashedOut > 0) {
-            this.pay(result.cashedOut);
-            goalEngine.ApplyRound(result.round);
-            return;
-        }
-
-        this.beginTurn();
         this.paint();
     }
 
@@ -219,17 +242,15 @@ export class GameScene implements Scene {
         this.clearTurnTimer();
         const turnId = this.turnId;
         const started = performance.now();
-        this.secondsLeft = Math.ceil(GOAL_TURN_MS / 1000);
+        goalEngine.SetSecondsLeft(Math.ceil(GOAL_TURN_MS / 1000));
         this.turnTimer = setInterval(() => {
             if (turnId !== this.turnId || this.destroyed) return;
-            if (goalState.round.phase !== "playing" || this.busy) return;
+            if (goalState.round.phase !== "playing" || goalEngine.IsPresentationLocked()) return;
+            if (this.awaitingPointer) return;
 
             const left = GOAL_TURN_MS - (performance.now() - started);
             const seconds = Math.max(0, Math.ceil(left / 1000));
-            if (seconds !== this.secondsLeft) {
-                this.secondsLeft = seconds;
-                this.board.setSeconds(seconds);
-            }
+            if (seconds !== goalEngine.SecondsLeft()) goalEngine.SetSecondsLeft(seconds);
 
             if (left <= 0) {
                 this.clearTurnTimer();
@@ -239,7 +260,7 @@ export class GameScene implements Scene {
     }
 
     private settleTimeout(): void {
-        if (goalState.round.phase !== "playing" || this.busy) return;
+        if (goalState.round.phase !== "playing" || goalEngine.IsPresentationLocked()) return;
 
         goalEngine.TakeCashout();
     }
@@ -258,6 +279,10 @@ export class GameScene implements Scene {
         return null;
     }
 
+    private stopRoundClock(): void {
+        this.clearTurnTimer();
+    }
+
     private pay(amount: number): void {
         if (amount > 0) gameState.balance += amount;
     }
@@ -269,15 +294,12 @@ export class GameScene implements Scene {
         clearInterval(this.turnTimer);
         this.turnTimer = null;
     }
-
-    private clearBoomTimer(): void {
-        if (!this.boomTimer) return;
-
-        clearTimeout(this.boomTimer);
-        this.boomTimer = null;
-    }
 }
 
 function unit(): number {
     return Math.random();
+}
+
+function units(count: number): number[] {
+    return Array.from({ length: count }, () => Math.random());
 }

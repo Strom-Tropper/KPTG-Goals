@@ -1,5 +1,14 @@
-import { Container, NineSliceSprite, Rectangle, Sprite, Text, Texture } from "pixi.js";
-import { GOAL_INK } from "@/shared/constants/goal";
+import { Container, Graphics, NineSliceSprite, Rectangle, Sprite, Text, Texture } from "pixi.js";
+import {
+    GOAL_FRAME,
+    GOAL_INK,
+    GOAL_INK_MUTED,
+    GOAL_KNOB,
+    GOAL_MENU,
+    GOAL_MENU_ROW,
+    GOAL_READOUT,
+    GOAL_READOUT_EDGE,
+} from "@/shared/constants/goal";
 import { createText, FONT_FAMILY } from "@/shared/utils/text/createText";
 
 export function goalLabel(
@@ -7,12 +16,13 @@ export function goalLabel(
     x: number,
     y: number,
     fontSize: number,
+    fill: number = GOAL_INK,
 ): Text {
     const text = createText({
         text: value,
         fontFamily: FONT_FAMILY.EB_GARAMOND,
         fontSize,
-        fill: GOAL_INK,
+        fill,
         align: "center",
     });
     text.anchor.set(0.5);
@@ -25,6 +35,24 @@ export type ButtonSkin = {
     hover: Texture;
     normal: Texture;
 };
+
+function stackedLines(
+    lines: string[],
+    width: number,
+    height: number,
+    fill: number = GOAL_INK,
+): Container {
+    const block = new Container();
+    const fontSize = Math.max(13, Math.round(height * (lines.length > 1 ? 0.28 : 0.34)));
+    lines.forEach((line, index) => {
+        const text = goalLabel(line, width / 2, 0, fontSize, fill);
+        const spread = lines.length === 1 ? 0 : fontSize * 1.2;
+        const offset = (index - (lines.length - 1) / 2) * spread;
+        text.position.set(width / 2, height / 2 + offset);
+        block.addChild(text);
+    });
+    return block;
+}
 
 export function labeledButton(
     x: number,
@@ -47,14 +75,14 @@ export function labeledButton(
         watchButtonSkin(root, plate, face, !dim && enabled);
     }
 
-    const fontSize = Math.max(13, Math.round(height * (lines.length > 1 ? 0.28 : 0.34)));
-    lines.forEach((line, index) => {
-        const text = goalLabel(line, width / 2, 0, fontSize);
-        const spread = lines.length === 1 ? 0 : fontSize * 1.2;
-        const offset = (index - (lines.length - 1) / 2) * spread;
-        text.position.set(width / 2, height / 2 + offset);
-        root.addChild(text);
-    });
+    root.addChild(
+        stackedLines(
+            lines,
+            width,
+            height,
+            enabled && !dim ? GOAL_INK : GOAL_INK_MUTED,
+        ),
+    );
 
     root.hitArea = new Rectangle(0, 0, width, height);
     root.eventMode = enabled ? "static" : "none";
@@ -64,64 +92,136 @@ export function labeledButton(
     return root;
 }
 
+export function valueReadout(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    lines: string[],
+    onPress?: () => void,
+    muted = false,
+    face?: ButtonSkin,
+): Container {
+    const root = new Container();
+    root.position.set(x, y);
+    if (face) {
+        const plate = buttonSprite(buttonRest(face, Boolean(onPress)), width, height);
+        root.addChild(plate);
+        watchButtonSkin(root, plate, face, Boolean(onPress));
+    } else {
+        const radius = Math.max(8, Math.round(height * 0.22));
+        const plate = new Graphics();
+        plate
+            .roundRect(0, 0, width, height, radius)
+            .fill({ color: GOAL_READOUT })
+            .stroke({ color: GOAL_READOUT_EDGE, width: 1 });
+        root.addChild(plate);
+    }
+    root.addChild(
+        stackedLines(lines, width, height, muted ? GOAL_INK_MUTED : GOAL_INK),
+    );
+    root.hitArea = new Rectangle(0, 0, width, height);
+    root.eventMode = onPress ? "static" : "none";
+    root.cursor = onPress ? "pointer" : "default";
+    if (onPress) root.on("pointertap", onPress);
+    return root;
+}
+
+export function betMenu(
+    x: number,
+    y: number,
+    width: number,
+    rowH: number,
+    choices: { text: string; selected: boolean }[],
+    onChoose: (index: number) => void,
+): Container {
+    const root = new Container();
+    root.position.set(x, y);
+    const pad = 8;
+    const height = pad * 2 + rowH * choices.length;
+    const plate = new Graphics();
+    plate
+        .roundRect(0, 0, width, height, 12)
+        .fill({ color: GOAL_MENU })
+        .stroke({ color: GOAL_FRAME, width: 2 });
+    root.addChild(plate);
+
+    choices.forEach((choice, index) => {
+        const rowY = pad + index * rowH;
+        const inset = 6;
+        const row = new Graphics();
+        row.roundRect(inset, rowY + 3, width - inset * 2, rowH - 6, 8).fill({
+            color: choice.selected ? GOAL_KNOB : GOAL_MENU_ROW,
+        });
+        root.addChild(row);
+        root.addChild(
+            goalLabel(
+                choice.text,
+                width / 2,
+                rowY + rowH / 2,
+                Math.max(13, Math.round(rowH * 0.38)),
+                choice.selected ? GOAL_INK : GOAL_INK_MUTED,
+            ),
+        );
+        const hit = new Container();
+        hit.position.set(0, rowY);
+        hit.hitArea = new Rectangle(0, 0, width, rowH);
+        hit.eventMode = "static";
+        hit.cursor = "pointer";
+        hit.on("pointertap", () => onChoose(index));
+        root.addChild(hit);
+    });
+
+    return root;
+}
+
 export function betStepper(
     x: number,
     y: number,
     width: number,
     buttonH: number,
-    captionH: number,
-    caption: string,
-    value: string,
-    enabled: boolean,
+    lines: string[],
+    minusEnabled: boolean,
+    plusEnabled: boolean,
     onBet: (direction: -1 | 1) => void,
+    onOpen: (() => void) | null,
     art: { button: ButtonSkin; minus: ButtonSkin; plus: ButtonSkin },
+    metrics: { knob: number; gap: number },
 ): Container {
     const root = new Container();
     root.position.set(x, y);
-    root.addChild(
-        goalLabel(
-            caption,
-            width / 2,
-            captionH / 2,
-            Math.max(12, Math.round(captionH * 0.72)),
-        ),
-    );
-
-    const knob = buttonH * 0.72;
-    const gap = Math.round(buttonH * 0.16);
-    const valueW = width - knob * 2 - gap * 2;
-    const rowY = captionH;
+    const { knob, gap } = metrics;
+    const valueW = Math.max(1, width - knob * 2 - gap * 2);
 
     root.addChild(
         knobButton(
             0,
-            rowY + (buttonH - knob) / 2,
+            (buttonH - knob) / 2,
             knob,
             art.minus,
-            enabled,
+            minusEnabled,
             () => onBet(-1),
         ),
     );
     root.addChild(
-        labeledButton(
+        valueReadout(
             knob + gap,
-            rowY,
+            0,
             valueW,
             buttonH,
-            [value],
-            false,
-            () => undefined,
-            false,
+            lines,
+            onOpen ?? undefined,
+            onOpen === null,
             art.button,
         ),
     );
     root.addChild(
         knobButton(
             width - knob,
-            rowY + (buttonH - knob) / 2,
+            (buttonH - knob) / 2,
             knob,
             art.plus,
-            enabled,
+            plusEnabled,
             () => onBet(1),
         ),
     );
@@ -131,25 +231,22 @@ export function betStepper(
 export function circleButton(
     x: number,
     y: number,
-    diameter: number,
+    width: number,
+    height: number,
     skin: ButtonSkin,
+    enabled = true,
 ): Container {
     const root = new Container();
-    const sprite = new Sprite(skin.active);
+    const sprite = new Sprite(enabled ? skin.active : skin.normal);
     sprite.anchor.set(0.5);
-    sprite.width = diameter;
-    sprite.height = diameter;
+    sprite.width = width;
+    sprite.height = height;
     root.addChild(sprite);
     root.position.set(x, y);
-    root.hitArea = new Rectangle(
-        -diameter / 2,
-        -diameter / 2,
-        diameter,
-        diameter,
-    );
-    root.eventMode = "static";
-    root.cursor = "pointer";
-    watchButtonSkin(root, sprite, skin, true);
+    root.hitArea = new Rectangle(-width / 2, -height / 2, width, height);
+    root.eventMode = enabled ? "static" : "none";
+    root.cursor = enabled ? "pointer" : "default";
+    watchButtonSkin(root, sprite, skin, enabled);
     return root;
 }
 

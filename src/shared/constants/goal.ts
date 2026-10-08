@@ -1,3 +1,10 @@
 export const GOAL_BACKGROUND = 0x111111;
 export const GOAL_FRAME = 0x8eae55;
 export const GOAL_INK = 0xf7f7f7;
+export const GOAL_INK_MUTED = 0x8a8a8a;
+export const GOAL_READOUT = 0x161616;
+export const GOAL_READOUT_EDGE = 0x3a3a3a;
+export const GOAL_KNOB = 0x1e3a28;
+export const GOAL_KNOB_EDGE = 0x8ed18a;
+export const GOAL_MENU = 0x101610;
+export const GOAL_MENU_ROW = 0x1a241c;

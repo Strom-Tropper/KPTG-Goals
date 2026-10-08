@@ -21,6 +21,9 @@ import buttonPlusUrl from "../../raw-assets/board{m}{copy}/button-plus.svg";
 import buttonSoundActiveUrl from "../../raw-assets/board{m}{copy}/button-sound-active.svg";
 import buttonSoundHoverUrl from "../../raw-assets/board{m}{copy}/button-sound-hover.svg";
 import buttonSoundUrl from "../../raw-assets/board{m}{copy}/button-sound.svg";
+import buttonHistoryActiveUrl from "../../raw-assets/board{m}{copy}/button-history-active.svg";
+import buttonHistoryHoverUrl from "../../raw-assets/board{m}{copy}/button-history-hover.svg";
+import buttonHistoryUrl from "../../raw-assets/board{m}{copy}/button-history.svg";
 
 import type { ButtonSkin } from "@/components/GoalControls";
 import {
@@ -39,6 +42,7 @@ export type GoalBoardArt = {
     cellExplode: Texture;
     cellNormal: Texture;
     explode: Texture;
+    history: ButtonSkin;
     info: ButtonSkin;
     minus: ButtonSkin;
     plus: ButtonSkin;
@@ -68,6 +72,9 @@ const ART_URLS = {
     [goalAssets.button_sound]: buttonSoundUrl,
     [goalAssets.button_sound_hover]: buttonSoundHoverUrl,
     [goalAssets.button_sound_active]: buttonSoundActiveUrl,
+    [goalAssets.button_history]: buttonHistoryUrl,
+    [goalAssets.button_history_hover]: buttonHistoryHoverUrl,
+    [goalAssets.button_history_active]: buttonHistoryActiveUrl,
 } satisfies Record<GoalAssetName, string>;
 
 export async function loadGoalBoardArt(): Promise<GoalBoardArt> {
@@ -99,6 +106,12 @@ export async function loadGoalBoardArt(): Promise<GoalBoardArt> {
         cellExplode: texture[goalAssets.cell_explode],
         cellNormal: texture[goalAssets.cell_normal],
         explode: texture[goalAssets.mark_explode],
+        history: skin(
+            texture,
+            goalAssets.button_history,
+            goalAssets.button_history_hover,
+            goalAssets.button_history_active,
+        ),
         info: skin(
             texture,
             goalAssets.button_info,

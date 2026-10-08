@@ -7,6 +7,7 @@ export type GoalStandby = {
     phase: "standby";
     betLevel: number;
     betChosen: boolean;
+    column?: number;
 };
 
 export type GoalPlaying = {
@@ -15,11 +16,19 @@ export type GoalPlaying = {
     column: number;
     clearedColumns: number;
     cashoutAmount: number;
-    trapSlot: number;
+    traps: number[];
     cleared: GoalSlotPick[];
 };
 
-export type GoalRound = GoalStandby | GoalPlaying;
+export type GoalEnded = {
+    phase: "ended";
+    betLevel: number;
+    betChosen: boolean;
+    column: number;
+    clearedColumns: number;
+};
+
+export type GoalRound = GoalStandby | GoalPlaying | GoalEnded;
 
 export type GoalPlayResult =
     | { ok: false; round: GoalRound }
@@ -31,10 +40,11 @@ export type GoalPickResult = {
     lost: boolean;
 };
 
-export type GoalCellFace =
-    | "normal"
-    | "active"
-    | "explode"
-    | "bullet"
-    | "ball"
-    | "bomb";
+export type GoalCellTile = "normal" | "active" | "explode";
+
+export type GoalCellMark = "none" | "ball" | "bomb" | "bullet" | "explode";
+
+export type GoalCellFace = {
+    tile: GoalCellTile;
+    mark: GoalCellMark;
+};

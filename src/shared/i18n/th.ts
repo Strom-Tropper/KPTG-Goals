@@ -60,10 +60,11 @@ export const th = {
     },
     goal: {
         balance: "ยอดเงิน",
-        betLevel: "ระดับเดิมพัน",
+        betLevel: "ระดับเดิมพัน {level}",
         cashout: "รับเงิน",
         play: "เล่น",
         random: "สุ่ม",
+        resetBet: "รีเซ็ตเดิมพัน",
         insufficientBalance: "ยอดเงินไม่พอ",
         invalidState: "เลือกเดิมพันก่อน",
         invalidSlot: "เลือกช่อง đang mở",

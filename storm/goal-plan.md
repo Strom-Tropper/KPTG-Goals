@@ -24,7 +24,7 @@ Người chơi chọn một mức trước khi PLAY.
 
 `10000`, `20000`, `50000`, `100000`, `200000`, `500000`, `1000000`.
 
-Wireframe đang chọn `1,000,000`. Nút trừ và cộng đổi mức trong danh sách này. Trong ván, hai nút đó khóa.
+Mặc định là mức 1, `10,000`, chữ trên ô là `Bet Level 1`. Bấm cộng tăng số mức và hiện đúng số tiền của mức đó. Mức 1 khóa nút trừ. Mức 7 khóa nút cộng. Ô giữa bấm được và mở danh sách 7 mức, `Bet Level 1` đến `Bet Level 7`, kèm số tiền của mức đó. Nút Reset Bet giữ nguyên mức đang chọn. STANDBY khóa Reset Bet. Trong ván, danh sách, Reset Bet, nút History và hai nút cộng trừ khóa. Chữ trên nút khóa màu xám.
 
 ## Hai pha
 
@@ -42,17 +42,17 @@ Bắt đầu khi bấm PLAY.
 - Khóa B Level.
 - PLAY đổi thành CASHOUT. Lượt đầu CASHOUT khóa.
 - RANDOM mở.
-- Cột đang chơi sáng, kèm hệ số của cột đó.
-- Mỗi lượt đếm ngược 30 giây.
+- Cột đang chơi sáng, kèm hệ số của cột đó. Hệ số các cột đã qua giữ lại, màu xám.
+- Một đồng hồ 30 giây cho cả ván, bắt đầu khi bấm PLAY, không đặt lại theo từng cột. Đồng hồ luôn hiện.
 - Người chơi chọn 1 trong 4 ô của cột đó, hoặc bấm RANDOM.
 
-RANDOM chọn một ô trong cột đang sáng. Hết 30 giây thì rút số đang hiện trên CASHOUT về balance và về STANDBY, kể cả lượt đầu. Nguồn random là tham số đưa vào engine.
+RANDOM chọn một ô trong cột đang sáng. Hết 30 giây mà chưa đi ô nào thì thua, tiền cược mất, mọi ô nền hồng. Đã qua ít nhất một cột thì tự cashout số đang hiện trên nút. Nguồn random là tham số đưa vào engine.
 
 ## Kết quả một lượt
 
 **Bẫy.** Sói chết. Ván kết thúc, về STANDBY. Tiền cược đã mất.
 
-**An toàn.** Tiền thắng hiện tại ghi lên nút CASHOUT. Sáng cột kế tiếp và hệ số của cột đó. CASHOUT mở, người chơi được rút.
+**An toàn.** Ô vừa chọn hiện trái bóng. Các ô an toàn của cột trước đó là dấu chấm. Tiền thắng hiện tại ghi lên nút CASHOUT. Sáng cột kế tiếp và hệ số của cột đó. CASHOUT mở, người chơi được rút.
 
 Tiền trên nút là B Level nhân hệ số của cột vừa đi qua. Qua cột 1 thì `1,000,000` thành `1,290,000`. Wireframe vẽ `1,720,000` cạnh nhãn `1.72x` khi cột 2 đang sáng. Bảng hệ số trong rule lấy `1.29` cho cột 1.
 
@@ -60,18 +60,23 @@ Tiền trên nút là B Level nhân hệ số của cột vừa đi qua. Qua c�
 
 | Cách | Việc |
 | --- | --- |
-| Dính bẫy | Sói chết, về STANDBY |
-| Bấm CASHOUT | Nhận tiền đang hiện trên nút, về STANDBY |
-| Sống sót cột 7 | Tự cashout ở hệ số 7.26 |
-| Hết 30 giây | Rút số trên CASHOUT về balance, về STANDBY. Lượt đầu số đó là 0 |
+| Dính bẫy | Cột dính bẫy trở đi nền hồng. Ô vừa bấm hiện `mark-explode`. Các ô bẫy khác hiện quả boom. Ván vào `ended` |
+| Bấm CASHOUT | Nhận tiền đang hiện trên nút. Hiện mọi ô bẫy. Ván vào `ended` |
+| Sống sót cột 7 | Tự cashout ở hệ số 7.26. Hiện mọi ô bẫy. Ván vào `ended` |
+| Hết 30 giây, chưa đi ô nào | Thua. Không cộng tiền. Mọi ô nền hồng và hiện ô bẫy. Ván vào `ended` |
+| Hết 30 giây, đã qua cột | Tự cashout số trên nút. Hiện mọi ô bẫy. Ván vào `ended` |
+
+`ended` giữ nguyên bàn và số giây đang hiện. PLAY và Reset Bet bật. Bấm PLAY bắt đầu ván mới. Reset Bet về STANDBY: bàn và mức bet giữ nguyên, nút bet bật, PLAY khóa đến khi chọn lại mức. Chọn xong thì PLAY bật, bấm PLAY mới vào ván mới.
 
 Lượt đầu không được cashout. Sau ô an toàn đầu tiên mới rút được.
+
+Chưa chốt: hết ván mà số dư không đủ mức bet đang chọn thì PLAY xử lý thế nào. Hiện PLAY vẫn sáng, bấm vào chỉ báo thiếu tiền.
 
 ## Wireframe
 
 Hai khung, ngang và dọc. Nền đen, ô bo góc.
 
-Trên bàn: hệ số cột vừa qua và hệ số cột đang tới. Góc phải: nút `i` và nút `S`.
+Trên bàn: hệ số cột đã qua màu xám, hệ số cột đang tới màu sáng. Góc phải: nút `i`, nút `H`, nút `S`.
 
 Cột đã đi: một ô bom, một ô bóng. Cột đang chơi: cả cột sáng hơn.
 

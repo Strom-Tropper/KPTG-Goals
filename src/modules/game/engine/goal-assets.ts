@@ -21,6 +21,9 @@ export const goalAssets = {
     button_sound: "button-sound",
     button_sound_hover: "button-sound-hover",
     button_sound_active: "button-sound-active",
+    button_history: "button-history",
+    button_history_hover: "button-history-hover",
+    button_history_active: "button-history-active",
 } as const;
 
 export type GoalAssetName = (typeof goalAssets)[keyof typeof goalAssets];
