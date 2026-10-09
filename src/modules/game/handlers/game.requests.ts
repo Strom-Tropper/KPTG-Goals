@@ -1,17 +1,40 @@
 import { socketClient } from "../ws/game.ws";
 import {
     REQ_BET_HISTORY,
+    REQ_CASHOUT,
     REQ_CHANGE_WALLET,
     REQ_CONFIRM_SESSION,
     REQ_JACKPOT_HISTORY,
     REQ_JACKPOT_VALUES,
     REQ_MINIGAME_PICK,
+    REQ_RANDOM,
     REQ_SPIN,
+    REQ_STATE,
 } from "../engine/game.constants";
 
 export const gameRequests = {
     Spin(bet: number) {
         return socketClient.send(REQ_SPIN, { bet });
+    },
+
+    PlayLevel(level: number | string) {
+        return socketClient.send(REQ_SPIN, { level });
+    },
+
+    PickColumn(ordinal: number, slot: number) {
+        return socketClient.send(REQ_MINIGAME_PICK, { ordinal, slot });
+    },
+
+    RandomColumn(ordinal: number) {
+        return socketClient.send(REQ_RANDOM, { ordinal });
+    },
+
+    CashoutColumn(ordinal: number) {
+        return socketClient.send(REQ_CASHOUT, { ordinal });
+    },
+
+    RequestState() {
+        return socketClient.send(REQ_STATE, {});
     },
 
     RequestJackpotValues() {

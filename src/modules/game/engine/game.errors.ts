@@ -1,5 +1,10 @@
 import { i18n } from "@/shared/i18n/I18nManager";
-import { GAME_ERROR_CODES, type GameErrorCode } from "./game.constants";
+import {
+    GAME_ERROR_CODES,
+    GOAL_ERROR_CODES,
+    type GameErrorCode,
+    type GoalErrorCode,
+} from "./game.constants";
 
 export { GAME_ERROR_CODES };
 export type { GameErrorCode };
@@ -73,4 +78,15 @@ export function getErrorMessage(
         ? i18n.t(messageKey)
         : fallbackMessage ||
               i18n.t("errors.server.unknown", { code: errorKey });
+}
+
+export { GOAL_ERROR_CODES };
+export type { GoalErrorCode };
+
+export function goalErrorCode(
+    reason: "balance" | "state" | "slot",
+): GoalErrorCode {
+    if (reason === "balance") return GOAL_ERROR_CODES.INSUFFICIENT_BALANCE;
+    if (reason === "slot") return GOAL_ERROR_CODES.INVALID_SLOT;
+    return GOAL_ERROR_CODES.INVALID_STATE;
 }

@@ -78,6 +78,7 @@ export const en = {
         insufficientBalance: "Not enough balance",
         invalidState: "Choose a bet first",
         invalidSlot: "Pick an open cell",
+        notConnected: "Not connected",
     },
     settings: {
         music: "MUSIC",

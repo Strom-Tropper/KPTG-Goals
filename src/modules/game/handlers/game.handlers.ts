@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { socketClient } from "../ws/game.ws";
 import { gameEngine } from "../engine/game.engine";
+import { goalSession } from "../engine/game.session";
 import { EVENT_NAMES, eventBus } from "../engine/game.events";
 import {
     RES_BALANCE_UPDATE,
     RES_BET_HISTORY,
     RES_ERROR,
     RES_FIRST_LOAD,
+    RES_STATE,
     RES_JACKPOT_HISTORY,
     RES_JACKPOT_VALUES,
     RES_MAIN_BALANCE_UPDATE,
@@ -115,5 +117,18 @@ export function InitGameHandlers(): void {
         gameEngine.handleErrorResponse(
             data as { errc?: string | number; error?: string },
         );
+        goalSession.applyError(data);
+    });
+
+    socketClient.on(RES_FIRST_LOAD, (data: any) => {
+        goalSession.applyConnect(data);
+    });
+
+    socketClient.on(RES_SPIN, (data: any) => {
+        goalSession.applyFrame(data);
+    });
+
+    socketClient.on(RES_STATE, (data: any) => {
+        goalSession.applySnapshot(data);
     });
 }

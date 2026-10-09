@@ -25,15 +25,15 @@ import buttonHistoryActiveUrl from "../../raw-assets/board{m}{copy}/button-histo
 import buttonHistoryHoverUrl from "../../raw-assets/board{m}{copy}/button-history-hover.svg";
 import buttonHistoryUrl from "../../raw-assets/board{m}{copy}/button-history.svg";
 
-import type { ButtonSkin } from "@/components/GoalControls";
+import type { ButtonSkin } from "@/components/GameControls";
 import {
     goalAssets,
     type GoalAssetName,
-} from "@/modules/game/engine/goal-assets";
+} from "@/modules/game/engine/game.assets";
 
 export type { ButtonSkin };
 
-export type GoalBoardArt = {
+export type GameBoardArt = {
     ball: Texture;
     bomb: Texture;
     bullet: Texture;
@@ -77,7 +77,7 @@ const ART_URLS = {
     [goalAssets.button_history_active]: buttonHistoryActiveUrl,
 } satisfies Record<GoalAssetName, string>;
 
-export async function loadGoalBoardArt(): Promise<GoalBoardArt> {
+export async function loadGameBoardArt(): Promise<GameBoardArt> {
     const loaded = await Promise.all(
         Object.entries(ART_URLS).map(async ([name, url]) => {
             const texture = await Assets.load<Texture>({

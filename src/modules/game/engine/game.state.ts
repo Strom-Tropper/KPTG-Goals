@@ -1,4 +1,12 @@
 import {
+    GOAL_BET_LEVELS,
+    GOAL_STEP_MULTIPLIERS,
+    GOAL_TURN_MS,
+    type GoalErrorCode,
+} from "./game.constants";
+import {
+    GoalCellFace,
+    GoalRound,
     JackpotMode,
     JackpotValues,
     FreeSpinMode,
@@ -110,4 +118,47 @@ export const gameState: GameState = {
         total_win: 0,
     },
     presentation_locked: false,
+};
+
+
+export type GoalLadderRow = {
+    level: string;
+    bet: number;
+};
+
+type GoalState = {
+    round: GoalRound;
+    cells: GoalCellFace[][];
+    error: GoalErrorCode | null;
+    notice: string | null;
+    presentationLocked: boolean;
+    betListOpen: boolean;
+    secondsLeft: number | null;
+    deadlineMs: number | null;
+    answerOrdinal: number | null;
+    ladder: GoalLadderRow[];
+    multipliersX100: number[];
+};
+
+const shippedLadder = GOAL_BET_LEVELS.map((bet) => ({
+    level: String(bet),
+    bet,
+}));
+
+export const goalState: GoalState = {
+    round: {
+        phase: "standby",
+        betLevel: GOAL_BET_LEVELS[0],
+        betChosen: false,
+    },
+    cells: [],
+    error: null,
+    notice: null,
+    presentationLocked: false,
+    betListOpen: false,
+    secondsLeft: GOAL_TURN_MS / 1000,
+    deadlineMs: null,
+    answerOrdinal: null,
+    ladder: shippedLadder,
+    multipliersX100: GOAL_STEP_MULTIPLIERS.map((value) => Math.round(value * 100)),
 };

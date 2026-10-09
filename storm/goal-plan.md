@@ -2,7 +2,7 @@
 
 Push your luck. Sói đói vượt bẫy của thợ săn để bắt cừu. RTP ước tính 97%. Cảm giác chơi tham chiếu [Spribe Goal](https://spribe.co/games/goal). Sản phẩm này là một bàn cố định, không có Field Small / Medium / Large, không có Auto Game, không có mức cược USD 0.10–100.
 
-Bàn quay slot đã xóa. `GameScene` gọi `goalEngine` rồi `GoalBoard` vẽ. Engine và socket slot còn trên đĩa. Số bàn, B Level, hệ số, và 30 giây nằm ở `src/modules/game/engine/goal-constants.ts`. Luật nằm ở `goal-engine.ts` và ghi vào `goalState`. Tiền trên CASHOUT là B Level nhân hệ số của cột vừa đi qua. Sau cột 1, mức `1,000,000` thành `1,290,000`.
+Bàn quay slot đã xóa. `GameScene` gọi `goalEngine` rồi `GameBoard` vẽ. Engine và socket slot còn trên đĩa. Số bàn, B Level, hệ số, và 30 giây nằm ở `src/modules/game/engine/game.constants.ts`. Luật nằm ở `game.engine.ts` (`goalEngine`) và ghi vào `goalState`. Tiền trên CASHOUT là B Level nhân hệ số của cột vừa đi qua. Sau cột 1, mức `1,000,000` thành `1,290,000`.
 
 ## Bàn
 
@@ -52,7 +52,7 @@ RANDOM chọn một ô trong cột đang sáng. Hết 30 giây mà chưa đi ô 
 
 **Bẫy.** Sói chết. Ván kết thúc, về STANDBY. Tiền cược đã mất.
 
-**An toàn.** Ô vừa chọn hiện trái bóng. Các ô an toàn của cột trước đó là dấu chấm. Tiền thắng hiện tại ghi lên nút CASHOUT. Sáng cột kế tiếp và hệ số của cột đó. CASHOUT mở, người chơi được rút.
+**An toàn.** Ô vừa chọn hiện trái bóng. Cột đó không vẽ quả bom. Các ô an toàn của cột trước đó là dấu chấm. Tiền thắng hiện tại ghi lên nút CASHOUT. Sáng cột kế tiếp và hệ số của cột đó. CASHOUT mở, người chơi được rút.
 
 Tiền trên nút là B Level nhân hệ số của cột vừa đi qua. Qua cột 1 thì `1,000,000` thành `1,290,000`. Wireframe vẽ `1,720,000` cạnh nhãn `1.72x` khi cột 2 đang sáng. Bảng hệ số trong rule lấy `1.29` cho cột 1.
 
@@ -78,7 +78,7 @@ Hai khung, ngang và dọc. Nền đen, ô bo góc.
 
 Trên bàn: hệ số cột đã qua màu xám, hệ số cột đang tới màu sáng. Góc phải: nút `i`, nút `H`, nút `S`.
 
-Cột đã đi: một ô bom, một ô bóng. Cột đang chơi: cả cột sáng hơn.
+Cột đã đi an toàn: chỉ dấu ô vừa chọn. Cột đang chơi: cả cột sáng hơn. Bom của cột chưa đi chỉ hiện khi ván kết thúc.
 
 Thanh ngang: Balance, RANDOM, CASHOUT kèm số tiền, Bet Level với trừ và cộng.
 
@@ -98,7 +98,7 @@ Không bịa thêm.
 
 1. Docker và nền xanh. Đã xong.
 2. Hằng số bàn, B Level, hệ số, 30 giây. Đã nằm ở `src/shared/constants/goal.ts`.
-3. Engine thuần. Nằm ở `src/modules/game/engine/goal-engine.ts`. Kết quả an toàn hoặc bẫy là tham số. `RandomSlot` nhận một số trong khoảng 0 đến 1.
+3. Engine thuần. Nằm ở `src/modules/game/engine/game.engine.ts` (`goalEngine`). Kết quả an toàn hoặc bẫy là tham số. `RandomSlot` nhận một số trong khoảng 0 đến 1.
 4. Scene vẽ bàn theo wireframe: lưới 7×4, cột sáng, bom và bóng, hệ số, thanh ngang và thanh dọc. Khung mở là ảnh giữa ván. CASHOUT trên khung đó về STANDBY, chưa cộng tiền.
 5. Trong ván: sáng cột, RANDOM, CASHOUT khóa rồi mở, một ô chọn đổi một kết quả.
 6. Đếm 30 giây. Hết giờ thì cùng đường với RANDOM.

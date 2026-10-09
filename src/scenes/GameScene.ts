@@ -1,27 +1,19 @@
 import { Application, Renderer } from "pixi.js";
 import type { Scene } from "@/scenes/Scene";
-import { GoalBoard } from "@/scenes/GoalBoard";
-import { loadGoalBoardArt } from "@/scenes/goal-board-art";
-import {
-    GOAL_BET_LEVELS,
-    GOAL_COLUMN_COUNT,
-    GOAL_ERROR_CODES,
-    GOAL_TURN_MS,
-    goalMultiplierText,
-} from "@/modules/game/engine/goal-constants";
-import { goalEngine } from "@/modules/game/engine/goal-engine";
-import { GOAL_EVENT_NAMES, goalEvents } from "@/modules/game/engine/goal-events";
-import { goalState } from "@/modules/game/engine/goal-state";
-import type { GoalPickResult, GoalPlayResult } from "@/modules/game/engine/goal-types";
-import { gameState } from "@/modules/game/engine/game.state";
+import { GameBoard } from "@/scenes/GameBoard";
+import { loadGameBoardArt } from "@/scenes/GameBoardArt";
+import { GOAL_ERROR_CODES, goalMultiplierText } from "@/modules/game/engine/game.constants";
+import { goalEngine } from "@/modules/game/engine/game.engine";
+import { EVENT_NAMES, eventBus, GOAL_EVENT_NAMES, goalEvents } from "@/modules/game/engine/game.events";
+import { goalSession } from "@/modules/game/engine/game.session";
+import { gameState, goalState } from "@/modules/game/engine/game.state";
+import { gameRequests } from "@/modules/game/handlers/game.requests";
 import { i18n } from "@/shared/i18n/I18nManager";
 import { format } from "@/shared/utils/formatNumber";
 
-const PLAY_PURSE = 50_000_000;
-
 export class GameScene implements Scene {
     private readonly app: Application<Renderer>;
-    private readonly board: GoalBoard;
+    private readonly board: GameBoard;
     private awaitingPointer = false;
     private turnTimer: ReturnType<typeof setInterval> | null = null;
     private turnId = 0;
@@ -35,7 +27,7 @@ export class GameScene implements Scene {
         _audioUrls: ReadonlyMap<string, string>,
     ) {
         this.app = app;
-        this.board = new GoalBoard({
+        this.board = new GameBoard({
             onBet: this.onBet,
             onOpenBetList: this.onOpenBetList,
             onChooseBet: this.onChooseBet,
@@ -50,9 +42,7 @@ export class GameScene implements Scene {
     }
 
     private mount = async (): Promise<void> => {
-        if (gameState.balance <= 0) gameState.balance = PLAY_PURSE;
-
-        const art = await loadGoalBoardArt();
+        const art = await loadGameBoardArt();
         if (this.destroyed) return;
 
         this.board.setArt(art);
@@ -84,7 +74,7 @@ export class GameScene implements Scene {
                 ? []
                 : Array.from({ length: shownColumn + 1 }, (_, column) => ({
                       column,
-                      text: goalMultiplierText(column),
+                      text: this.multiplierLabel(column),
                       passed: !playing || column < shownColumn,
                   }));
 
@@ -112,8 +102,8 @@ export class GameScene implements Scene {
             ],
             betSelectable: goalEngine.CanChangeBet(),
             betListOpen: goalState.betListOpen,
-            betChoices: GOAL_BET_LEVELS.map((amount, index) => ({
-                text: `${i18n.t("goal.betLevel", { level: index + 1 })} : ${format(amount)}`,
+            betChoices: goalState.ladder.map((row, index) => ({
+                text: `${i18n.t("goal.betLevel", { level: index + 1 })} : ${format(row.bet)}`,
                 selected: index === goalEngine.BetLevelNumber() - 1,
             })),
             minusEnabled: goalEngine.CanDecreaseBet(),
@@ -129,30 +119,20 @@ export class GameScene implements Scene {
         this.unlisten.push(
             goalEvents.on(GOAL_EVENT_NAMES.BET_LEVEL_CHANGED, () => this.paint()),
             goalEvents.on(GOAL_EVENT_NAMES.ERROR, () => this.paint()),
-            goalEvents.on(GOAL_EVENT_NAMES.PLAY_STARTED, (payload) => {
-                const result = payload as GoalPlayResult & { ok: true };
-                gameState.balance -= result.stake;
-                this.beginTurn();
-                this.paint();
-            }),
             goalEvents.on(GOAL_EVENT_NAMES.PRESENTATION_LOCK_CHANGED, () => this.paint()),
             goalEvents.on(GOAL_EVENT_NAMES.BET_LIST_CHANGED, () => this.paint()),
             goalEvents.on(GOAL_EVENT_NAMES.SECONDS_CHANGED, () => {
                 this.board.setSeconds(goalState.secondsLeft);
             }),
-            goalEvents.on(GOAL_EVENT_NAMES.PICK_RESOLVED, (payload) => {
-                this.onPickResolved(payload as GoalPickResult);
-            }),
-            goalEvents.on(GOAL_EVENT_NAMES.CASHOUT, (payload) => {
-                const result = payload as GoalPickResult;
-                this.pay(result.cashedOut);
-                this.stopRoundClock();
+            goalEvents.on(GOAL_EVENT_NAMES.SCREEN, () => {
+                this.followDeadline();
                 this.paint();
             }),
             goalEvents.on(GOAL_EVENT_NAMES.STANDBY, () => {
                 this.stopRoundClock();
                 this.paint();
             }),
+            eventBus.on(EVENT_NAMES.BALANCE_UPDATE_RESPONSE, () => this.paint()),
         );
     }
 
@@ -190,26 +170,49 @@ export class GameScene implements Scene {
         if (goalEngine.IsPresentationLocked()) return;
 
         if (goalState.round.phase === "playing") {
-            goalEngine.Cashout();
+            this.sendTurn((ordinal) => gameRequests.CashoutColumn(ordinal));
             return;
         }
 
-        goalEngine.Play(gameState.balance, units(GOAL_COLUMN_COUNT));
-    };
+        if (!goalEngine.CanPlay()) return;
+
+        this.sendBare(() => gameRequests.PlayLevel(goalEngine.BetLevelKey()));
+    }
 
     private onRandom = (): void => {
         if (this.awaitingPointer || !goalEngine.CanRandom()) return;
 
-        const slot = goalEngine.RandomSlot(unit());
-        this.afterPointer(() => this.resolvePick(slot));
+        this.afterPointer(() => this.sendTurn((ordinal) => gameRequests.RandomColumn(ordinal)));
     };
 
     private onPick = (slot: number): void => {
         if (this.awaitingPointer || goalEngine.IsPresentationLocked()) return;
         if (goalState.round.phase !== "playing") return;
 
-        this.afterPointer(() => this.resolvePick(slot));
+        this.afterPointer(() =>
+            this.sendTurn((ordinal) => gameRequests.PickColumn(ordinal, slot)),
+        );
     };
+
+    private sendTurn(send: (ordinal: number) => boolean): void {
+        const ordinal = goalState.answerOrdinal;
+        if (ordinal === null) {
+            goalSession.note(i18n.t("goal.notConnected"));
+            this.paint();
+            return;
+        }
+
+        this.sendBare(() => send(ordinal));
+    }
+
+    private sendBare(send: () => boolean): void {
+        goalEngine.SetPresentationLocked(true);
+        if (send()) return;
+
+        goalEngine.SetPresentationLocked(false);
+        goalSession.note(i18n.t("goal.notConnected"));
+        this.paint();
+    }
 
     private afterPointer(action: () => void): void {
         this.awaitingPointer = true;
@@ -221,51 +224,30 @@ export class GameScene implements Scene {
         });
     }
 
-    private resolvePick(slot: number): void {
-        if (goalState.round.phase !== "playing") return;
-
-        goalEngine.Pick(slot);
-    }
-
-    private onPickResolved(result: GoalPickResult): void {
-        if (result.lost || result.cashedOut > 0) {
-            if (result.cashedOut > 0) this.pay(result.cashedOut);
-            this.stopRoundClock();
-            this.paint();
-            return;
-        }
-
-        this.paint();
-    }
-
-    private beginTurn(): void {
+    private followDeadline(): void {
         this.clearTurnTimer();
+        const deadline = goalState.deadlineMs;
+        if (deadline === null || goalState.round.phase !== "playing") return;
+
         const turnId = this.turnId;
-        const started = performance.now();
-        goalEngine.SetSecondsLeft(Math.ceil(GOAL_TURN_MS / 1000));
         this.turnTimer = setInterval(() => {
             if (turnId !== this.turnId || this.destroyed) return;
-            if (goalState.round.phase !== "playing" || goalEngine.IsPresentationLocked()) return;
-            if (this.awaitingPointer) return;
 
-            const left = GOAL_TURN_MS - (performance.now() - started);
-            const seconds = Math.max(0, Math.ceil(left / 1000));
+            const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
             if (seconds !== goalEngine.SecondsLeft()) goalEngine.SetSecondsLeft(seconds);
-
-            if (left <= 0) {
-                this.clearTurnTimer();
-                this.settleTimeout();
-            }
         }, 200);
     }
 
-    private settleTimeout(): void {
-        if (goalState.round.phase !== "playing" || goalEngine.IsPresentationLocked()) return;
+    private multiplierLabel(column: number): string {
+        const x100 = goalState.multipliersX100[column];
+        if (x100 === undefined) return goalMultiplierText(column);
 
-        goalEngine.TakeCashout();
+        return `${(x100 / 100).toFixed(2)}x`;
     }
 
     private notice(): string | null {
+        if (goalState.notice) return goalState.notice;
+
         const error = goalState.error;
         if (error === GOAL_ERROR_CODES.INSUFFICIENT_BALANCE) {
             return i18n.t("goal.insufficientBalance");
@@ -283,10 +265,6 @@ export class GameScene implements Scene {
         this.clearTurnTimer();
     }
 
-    private pay(amount: number): void {
-        if (amount > 0) gameState.balance += amount;
-    }
-
     private clearTurnTimer(): void {
         this.turnId += 1;
         if (!this.turnTimer) return;
@@ -294,12 +272,4 @@ export class GameScene implements Scene {
         clearInterval(this.turnTimer);
         this.turnTimer = null;
     }
-}
-
-function unit(): number {
-    return Math.random();
-}
-
-function units(count: number): number[] {
-    return Array.from({ length: count }, () => Math.random());
 }

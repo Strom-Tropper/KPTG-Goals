@@ -6,12 +6,12 @@ import {
     goalLabel,
     labeledButton,
     valueReadout,
-} from "@/components/GoalControls";
+} from "@/components/GameControls";
 import {
     GOAL_COLUMN_COUNT,
     GOAL_SLOT_COUNT,
-} from "@/modules/game/engine/goal-constants";
-import type { GoalCellFace } from "@/modules/game/engine/goal-types";
+} from "@/modules/game/engine/game.constants";
+import type { GoalCellFace } from "@/modules/game/engine/game.types";
 import {
     GOAL_BACKGROUND,
     GOAL_FRAME,
@@ -20,8 +20,8 @@ import {
     GOAL_KNOB,
     GOAL_KNOB_EDGE,
 } from "@/shared/constants/goal";
-import { goalCell } from "@/scenes/goal-cells";
-import type { GoalBoardArt } from "@/scenes/goal-board-art";
+import { gameCell } from "@/scenes/GameCells";
+import type { GameBoardArt } from "@/scenes/GameBoardArt";
 
 type BoxControl = {
     w: number;
@@ -82,7 +82,7 @@ const bottomControls: {
 
 export type { GoalCellFace };
 
-export type GoalBoardModel = {
+export type GameBoardModel = {
     width: number;
     height: number;
     cells: GoalCellFace[][];
@@ -113,7 +113,7 @@ export type GoalMultiplierMark = {
     passed: boolean;
 };
 
-export type GoalBoardActions = {
+export type GameBoardActions = {
     onBet: (direction: -1 | 1) => void;
     onOpenBetList: () => void;
     onChooseBet: (index: number) => void;
@@ -123,20 +123,20 @@ export type GoalBoardActions = {
     onRandom: () => void;
 };
 
-export class GoalBoard extends Container {
-    private art: GoalBoardArt | null = null;
+export class GameBoard extends Container {
+    private art: GameBoardArt | null = null;
     private clock: Text | null = null;
 
-    constructor(private readonly actions: GoalBoardActions) {
+    constructor(private readonly actions: GameBoardActions) {
         super();
-        this.label = "GoalBoard";
+        this.label = "GameBoard";
     }
 
-    setArt(art: GoalBoardArt): void {
+    setArt(art: GameBoardArt): void {
         this.art = art;
     }
 
-    show(model: GoalBoardModel): void {
+    show(model: GameBoardModel): void {
         const art = this.art;
         if (!art) return;
 
@@ -159,7 +159,7 @@ export class GoalBoard extends Container {
         this.drawLandscape(model, art);
     }
 
-    private drawLandscape(model: GoalBoardModel, art: GoalBoardArt): void {
+    private drawLandscape(model: GameBoardModel, art: GameBoardArt): void {
         const edge = Math.round(Math.min(model.width, model.height) * 0.03);
         const baseH = controlHeight(model.height, bottomControls.height);
         const band = bottomBand(baseH);
@@ -261,7 +261,7 @@ export class GoalBoard extends Container {
         );
     }
 
-    private drawPortrait(model: GoalBoardModel, art: GoalBoardArt): void {
+    private drawPortrait(model: GameBoardModel, art: GameBoardArt): void {
         const edge = Math.round(model.width * 0.05);
         const buttonH = controlHeight(model.width, bottomControls.portrait);
         const railBase = controlHeight(Math.min(model.width, model.height), railControls.size);
@@ -371,7 +371,7 @@ export class GoalBoard extends Container {
         gridY: number,
         grid: GridFit,
         cells: GoalCellFace[][],
-        art: GoalBoardArt,
+        art: GameBoardArt,
     ): void {
         const frame = new Graphics();
         frame
@@ -395,7 +395,7 @@ export class GoalBoard extends Container {
                     face.tile === "active"
                         ? () => this.actions.onPick(slot)
                         : undefined;
-                this.addChild(goalCell(art, face, x, y, grid.cell, onPress));
+                this.addChild(gameCell(art, face, x, y, grid.cell, onPress));
             }
         }
     }
@@ -404,7 +404,7 @@ export class GoalBoard extends Container {
         gridX: number,
         gridY: number,
         grid: GridFit,
-        model: GoalBoardModel,
+        model: GameBoardModel,
     ): void {
         const fontSize = Math.max(14, Math.round(grid.cell * 0.2));
         const y = gridY - fontSize * 0.85;
@@ -434,7 +434,7 @@ export class GoalBoard extends Container {
     }
 
     private drawNotice(
-        model: GoalBoardModel,
+        model: GameBoardModel,
         x: number,
         y: number,
         fontSize: number,
@@ -445,8 +445,8 @@ export class GoalBoard extends Container {
     }
 
     private drawSideRail(
-        model: GoalBoardModel,
-        art: GoalBoardArt,
+        model: GameBoardModel,
+        art: GameBoardArt,
         frameRight: number,
         frameTop: number,
     ): void {
@@ -467,7 +467,7 @@ export class GoalBoard extends Container {
         this.addChild(circleButton(rail.info.cx, rail.info.cy, rail.info.width, rail.info.height, art.info));
     }
 
-    private drawTimerKnob(model: GoalBoardModel, knobBox: RailRect): void {
+    private drawTimerKnob(model: GameBoardModel, knobBox: RailRect): void {
         const knob = new Graphics();
         knob
             .ellipse(0, 0, knobBox.width / 2, knobBox.height / 2)
@@ -490,7 +490,7 @@ export class GoalBoard extends Container {
     }
 
     private drawBetMenu(
-        model: GoalBoardModel,
+        model: GameBoardModel,
         anchorX: number,
         anchorY: number,
         anchorW: number,

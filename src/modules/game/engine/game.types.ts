@@ -170,6 +170,85 @@ export type ResponseJackpotValuesType =
       }
     | (JackpotValues & { c?: 110 | 451; mode?: JackpotMode });
 
+export type GoalBetLevel = {
+    level: string;
+    bet: number;
+};
+
+export type GoalGameConfig = {
+    bet_levels: GoalBetLevel[];
+    trap_count: number;
+    multipliers_x100: number[];
+    turn_timer_seconds: number;
+    reveal_delay_ms: number;
+};
+
+export type GoalWireTurn = {
+    ordinal?: number;
+    column?: number;
+    by?: string;
+    action?: string;
+    slot?: number;
+    trap?: boolean;
+    presence?: string;
+};
+
+export type GoalWireOpen = {
+    ticket_id?: string;
+    round_id?: string;
+    ordinal: number;
+    next?: string;
+    bet?: number;
+    cleared?: number;
+    board?: Array<number | null>;
+    turns?: GoalWireTurn[];
+    current_win?: number;
+    deadline_ms?: number;
+    expired?: boolean;
+};
+
+export type GoalWireFinished = {
+    ticket_id?: string;
+    round_id?: string;
+    bet?: number;
+    win?: number;
+    ending?: string;
+    board?: Array<number | null>;
+    turns?: GoalWireTurn[];
+};
+
+export type GoalConnectState = {
+    state?: string | GoalConnectState;
+    open?: GoalWireOpen;
+    finished?: GoalWireFinished;
+    game_config?: GoalGameConfig;
+};
+
+export type GoalStatusFrame = {
+    ticket_id?: string;
+    round_id?: string;
+    ordinal?: number;
+    kind?: string;
+    win?: number;
+    total?: number;
+    done?: boolean;
+    deadline_ms?: number;
+    payload?: {
+        next?: string;
+        cleared?: number;
+        turn?: GoalWireTurn;
+        board?: Array<number | null>;
+        current_win?: number;
+        ending?: string;
+    };
+};
+
+export type GoalErrorFrame = {
+    err?: number;
+    errc?: string;
+    error?: string;
+};
+
 export type ResponseBalanceUpdateType = {
     b?: number;
     balance?: number;
@@ -255,4 +334,55 @@ export type ResponseJackpotHistoryType = {
     list: JackpotHistoryItem[];
     page: number;
     total: number;
+};
+
+export type GoalSlotPick = {
+    column: number;
+    slot: number;
+};
+
+export type GoalStandby = {
+    phase: "standby";
+    betLevel: number;
+    betChosen: boolean;
+    column?: number;
+};
+
+export type GoalPlaying = {
+    phase: "playing";
+    betLevel: number;
+    column: number;
+    clearedColumns: number;
+    cashoutAmount: number;
+    traps: number[];
+    cleared: GoalSlotPick[];
+};
+
+export type GoalEnded = {
+    phase: "ended";
+    betLevel: number;
+    betChosen: boolean;
+    column: number;
+    clearedColumns: number;
+};
+
+export type GoalRound = GoalStandby | GoalPlaying | GoalEnded;
+
+export type GoalPlayResult =
+    | { ok: false; round: GoalRound }
+    | { ok: true; round: GoalPlaying; stake: number };
+
+export type GoalPickResult = {
+    round: GoalRound;
+    cashedOut: number;
+    lost: boolean;
+};
+
+export type GoalCellTile = "normal" | "active" | "explode";
+
+export type GoalCellMark = "none" | "ball" | "bomb" | "bullet" | "explode";
+
+export type GoalCellFace = {
+    tile: GoalCellTile;
+    mark: GoalCellMark;
 };

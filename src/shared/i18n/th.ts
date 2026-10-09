@@ -68,6 +68,7 @@ export const th = {
         insufficientBalance: "ยอดเงินไม่พอ",
         invalidState: "เลือกเดิมพันก่อน",
         invalidSlot: "เลือกช่อง đang mở",
+        notConnected: "ยังไม่เชื่อมต่อ",
     },
     settings: {
         music: "MUSIC",

@@ -64,7 +64,7 @@ const normalizePayload = (payload: unknown) => {
 
 const handleIncomingMessage = (rawData: string) => {
     try {
-        const parsed = JSON.parse(rawData) as {
+        const parsed = JSON.parse(quoteLongIds(rawData)) as {
             c?: number;
             data?: any;
             code?: number;
@@ -210,7 +210,14 @@ const getConnectionMode = (token?: string | null): "demo" | "real" => {
 
 export const isDemoMode = (): boolean => currentMode === "demo";
 
+const quoteLongIds = (rawData: string) =>
+    rawData.replace(/"member_id":(\d{16,})/g, '"member_id":"$1"');
+
+const socketUrl = (url: string) =>
+    url.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
+
 const buildEndpoint = (url: string, token?: string | null): string => {
+    const socketBase = socketUrl(url);
     const isDemo = !token;
     const finalToken = token ? token : `demo-${crypto.randomUUID()}`;
 
@@ -245,7 +252,9 @@ const buildEndpoint = (url: string, token?: string | null): string => {
     );
 
     const extraStr = extra.toString();
-    return url.includes("?") ? `${url}&${extraStr}` : `${url}?${extraStr}`;
+    return socketBase.includes("?")
+        ? `${socketBase}&${extraStr}`
+        : `${socketBase}?${extraStr}`;
 };
 
 // Setup network / visibility monitors (called once at module load)
@@ -384,7 +393,7 @@ const send = (
 
     const payload: Record<string, any> = { c: opcode, ...rootParams };
 
-    if (data !== null && data !== undefined && Object.keys(data).length > 0) {
+    if (data !== null && data !== undefined) {
         payload.data = data;
     }
 

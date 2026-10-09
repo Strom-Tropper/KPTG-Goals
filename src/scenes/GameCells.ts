@@ -1,9 +1,9 @@
 import { Container, Rectangle, Sprite, Texture } from "pixi.js";
-import type { GoalCellFace, GoalCellMark, GoalCellTile } from "@/modules/game/engine/goal-types";
-import type { GoalBoardArt } from "@/scenes/goal-board-art";
+import type { GoalCellFace, GoalCellMark, GoalCellTile } from "@/modules/game/engine/game.types";
+import type { GameBoardArt } from "@/scenes/GameBoardArt";
 
-export function goalCell(
-    art: GoalBoardArt,
+export function gameCell(
+    art: GameBoardArt,
     face: GoalCellFace,
     x: number,
     y: number,
@@ -37,13 +37,13 @@ export function goalCell(
     return root;
 }
 
-function tileTexture(art: GoalBoardArt, tile: GoalCellTile): Texture {
+function tileTexture(art: GameBoardArt, tile: GoalCellTile): Texture {
     if (tile === "explode") return art.cellExplode;
     if (tile === "active") return art.cellActive;
     return art.cellNormal;
 }
 
-function markTexture(art: GoalBoardArt, mark: GoalCellMark): Texture | null {
+function markTexture(art: GameBoardArt, mark: GoalCellMark): Texture | null {
     if (mark === "explode") return art.explode;
     if (mark === "bomb") return art.bomb;
     if (mark === "ball") return art.ball;

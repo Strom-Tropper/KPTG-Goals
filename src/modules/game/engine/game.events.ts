@@ -105,3 +105,41 @@ export const eventBus = {
         listeners[event]?.forEach((cb) => cb(payload));
     },
 };
+
+type GoalEventHandler = (payload: unknown) => void;
+
+const goalListeners: Record<string, GoalEventHandler[]> = {};
+
+export const GOAL_EVENT_NAMES = {
+    BET_LEVEL_CHANGED: "BET_LEVEL_CHANGED",
+    PLAY_STARTED: "PLAY_STARTED",
+    PICK_RESOLVED: "PICK_RESOLVED",
+    CASHOUT: "CASHOUT",
+    STANDBY: "STANDBY",
+    ERROR: "ERROR",
+    PRESENTATION_LOCK_CHANGED: "PRESENTATION_LOCK_CHANGED",
+    BET_LIST_CHANGED: "BET_LIST_CHANGED",
+    SECONDS_CHANGED: "SECONDS_CHANGED",
+    SCREEN: "SCREEN",
+};
+
+export const goalEvents = {
+    on(event: string, cb: GoalEventHandler) {
+        goalListeners[event] = goalListeners[event] || [];
+        goalListeners[event].push(cb);
+
+        return () => {
+            this.off(event, cb);
+        };
+    },
+
+    off(event: string, cb: GoalEventHandler) {
+        goalListeners[event] = goalListeners[event]?.filter(
+            (listener) => listener !== cb,
+        );
+    },
+
+    emit(event: string, payload: unknown) {
+        goalListeners[event]?.forEach((cb) => cb(payload));
+    },
+};
