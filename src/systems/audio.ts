@@ -1,12 +1,12 @@
-import { EVENT_NAMES, eventBus } from "@/modules/game/engine/game.events";
-
-import {
-    SOUND_FILES,
-    type SoundName,
-    SYMBOL_SOUNDS,
-    LORE_SOUNDS,
-} from "./audio.config";
-import type { WinLine } from "@/modules/game/engine/game.types";
+import { GOAL_EVENT_NAMES, goalEvents } from "@/modules/game/engine/game.events";
+import { goalState } from "@/modules/game/engine/game.state";
+import { SOUND_FILES, type SoundName } from "./audio.config";
+import bgSoundUrl from "../../raw-assets/audio{m}{copy}/bgSound.mp3";
+import boomUrl from "../../raw-assets/audio{m}{copy}/boom.mp3";
+import btnUrl from "../../raw-assets/audio{m}{copy}/btn.mp3";
+import clickUrl from "../../raw-assets/audio{m}{copy}/click.mp3";
+import coinUrl from "../../raw-assets/audio{m}{copy}/coin.mp3";
+import winUrl from "../../raw-assets/audio{m}{copy}/win.mp3";
 
 type PlayOptions = {
     loop?: boolean;
@@ -16,16 +16,16 @@ type PlayOptions = {
 };
 
 const MUSIC_NAME: SoundName = "bgm_main";
-const MUSIC_VOLUME = 0.3;
+const MUSIC_VOLUME = 0.22;
 const MUSIC_VOLUME_SCALE: Partial<Record<SoundName, number>> = {
     bgm_main: 0.85,
 };
-const MASTER_SFX_VOLUME = 0.5;
+const MASTER_SFX_VOLUME = 0.35;
 const SFX_VOLUME: Partial<Record<SoundName, number>> = {};
 const NEVER_LOOP_SFX = new Set<SoundName>([
-    "sfx_bigwin_amount",
-    "sfx_bigwin_popup",
-    "sfx_jackpot",
+    // "sfx_bigwin_amount",
+    // "sfx_bigwin_popup",
+    // "sfx_jackpot",
 ]);
 const GESTURE_EVENTS = [
     "pointerdown",
@@ -62,11 +62,17 @@ class AudioSystem {
     private resumeTimer: ReturnType<typeof setTimeout> | null = null;
     private eventSoundsBound = false;
     private visibilityBound = false;
+    private goalSoundsBound = false;
+    private goalPhase = "";
+    private outcomeArmed = false;
 
     constructor() {
         if (typeof window === "undefined") return;
         this.initWebAudio();
         this.bindAudioUnlock();
+        this.mountGoalSources();
+        this.setupGoalSounds();
+        this.setupVisibilityHandling();
     }
 
     add(file: string, url: string) {
@@ -77,6 +83,7 @@ class AudioSystem {
             if (filename !== file) continue;
             if (name.startsWith("bgm_")) {
                 this.musicUrls.set(name, url);
+                void fetch(url);
                 if (name === this.musicName) this.createMusic(url);
             } else if (!this.buffers.has(name) && !this.loading.has(name)) {
                 this.loading.set(name, this.loadBuffer(name, url));
@@ -84,25 +91,25 @@ class AudioSystem {
         }
     }
 
-    setStage(stage: number, freeSpins = 0) {
-        const index = Number.isFinite(stage)
-            ? Math.max(0, Math.min(3, Math.trunc(stage)))
-            : 0;
-        const name: SoundName =
-            freeSpins > 0
-                ? "bgm_freespin"
-                : (
-                      [
-                          "bgm_main",
-                          "bgm_moria",
-                          "bgm_argonath",
-                          "bgm_doom",
-                      ] as const
-                  )[index];
-        this.stageMusicName = name;
-        if (this.bonusGameActive) return;
-        this.setMusic(name);
-    }
+    // setStage(stage: number, freeSpins = 0) {
+    //     const index = Number.isFinite(stage)
+    //         ? Math.max(0, Math.min(3, Math.trunc(stage)))
+    //         : 0;
+    //     const name: SoundName =
+    //         freeSpins > 0
+    //             ? "bgm_freespin"
+    //             : (
+    //                   [
+    //                       "bgm_main",
+    //                       "bgm_moria",
+    //                       "bgm_argonath",
+    //                       "bgm_doom",
+    //                   ] as const
+    //               )[index];
+    //     this.stageMusicName = name;
+    //     if (this.bonusGameActive) return;
+    //     this.setMusic(name);
+    // }
 
     private setMusic(name: SoundName) {
         if (name === this.musicName) return;
@@ -172,6 +179,17 @@ class AudioSystem {
         return source;
     }
 
+    isOutputMuted() {
+        return this.musicMuted && this.sfxMuted;
+    }
+
+    toggleOutputMute() {
+        const muted = !this.isOutputMuted();
+        if (this.musicMuted !== muted) this.toggleMusicMute();
+        if (this.sfxMuted !== muted) this.toggleSfxMute();
+        return muted;
+    }
+
     isMusicMuted() {
         return this.musicMuted;
     }
@@ -208,111 +226,153 @@ class AudioSystem {
         this.visibilityBound = true;
     }
 
-    setupEventSounds() {
-        if (this.eventSoundsBound) return;
-        this.eventSoundsBound = true;
-        const play = (name: SoundName, options?: PlayOptions) => {
-            void this.play(name, options);
-        };
+    // setupEventSounds() {
+    //     if (this.eventSoundsBound) return;
+    //     this.eventSoundsBound = true;
+    //     const play = (name: SoundName, options?: PlayOptions) => {
+    //         void this.play(name, options);
+    //     };
+    //
+    //     eventBus.on(EVENT_NAMES.BET_LEVEL_CHANGED, () =>
+    //         play("button_click_blevel"),
+    //     );
+    //     eventBus.on(EVENT_NAMES.SPIN_REQUEST, (request) => {
+    //         if (!request?.instantStop) play("button_click_spin");
+    //     });
+    //     eventBus.on(EVENT_NAMES.AUDIO_BUTTON_OTHER_CLICKED, () =>
+    //         play("button_click_other"),
+    //     );
+    //     eventBus.on(EVENT_NAMES.TURBO_CHANGED, (turbo) =>
+    //         play(turbo ? "button_turbo" : "button_click_other", {
+    //             volume: turbo ? 1.5 : 1,
+    //         }),
+    //     );
+    //     eventBus.on(EVENT_NAMES.AUDIO_PAGE_CHANGED, () => play("sfx_page"));
+    //     eventBus.on(EVENT_NAMES.SPIN_STATE_CHANGED, (spinning) => {
+    //         if (spinning)
+    //             play("sfx_rolling", { loop: true, singleInstance: true });
+    //         else this.stopSfx("sfx_rolling");
+    //     });
+    //     eventBus.on(EVENT_NAMES.AUDIO_REEL_STOPPED, () => play("sfx_stop"));
+    //     eventBus.on(EVENT_NAMES.AUDIO_REELS_STOPPED, () =>
+    //         this.stopSfx("sfx_rolling"),
+    //     );
+    //     eventBus.on(EVENT_NAMES.AUDIO_WIN_LOW, () => play("sfx_win_low"));
+    //     eventBus.on(EVENT_NAMES.AUDIO_WIN_HIGH, () => play("sfx_win_high"));
+    //     eventBus.on(EVENT_NAMES.AUDIO_WINLINE_SHOWN, () => play("sfx_winline"));
+    //     eventBus.on(EVENT_NAMES.AUDIO_WILD_WIN_SHOWN, () =>
+    //         play("sfx_tpf_wild"),
+    //     );
+    //     eventBus.on(EVENT_NAMES.AUDIO_WIN_AMOUNT_STARTED, () =>
+    //         play("sfx_win_amount", { loop: true, singleInstance: true }),
+    //     );
+    //     eventBus.on(EVENT_NAMES.AUDIO_WIN_AMOUNT_STOPPED, () =>
+    //         this.stopSfx("sfx_win_amount"),
+    //     );
+    //     eventBus.on(EVENT_NAMES.AUDIO_BIGWIN_AMOUNT_STARTED, () =>
+    //         play("sfx_bigwin_amount", { singleInstance: true }),
+    //     );
+    //     eventBus.on(EVENT_NAMES.AUDIO_BIGWIN_AMOUNT_STOPPED, () =>
+    //         this.stopSfx("sfx_bigwin_amount"),
+    //     );
+    //     eventBus.on(EVENT_NAMES.AUDIO_BIGWIN_POPUP_SHOWN, (level) => {
+    //         this.stopSfx("sfx_rolling");
+    //         this.playExclusiveSfx(
+    //             level === "mega"
+    //                 ? "sfx_megawin"
+    //                 : level === "ultra"
+    //                   ? "sfx_ultrawin"
+    //                   : "sfx_bigwin_popup",
+    //             "bigwin-popup",
+    //         );
+    //     });
+    //     eventBus.on(
+    //         EVENT_NAMES.RADIAL_WIN_LINES_SHOWN,
+    //         ({ winLines }: { winLines: WinLine[] }) => {
+    //             const line =
+    //                 winLines.find(
+    //                     (line) => line.lore_id && LORE_SOUNDS[line.lore_id],
+    //                 ) ?? winLines.find((line) => SYMBOL_SOUNDS[line.symbol_id]);
+    //             const sound =
+    //                 line &&
+    //                 ((line.lore_id && LORE_SOUNDS[line.lore_id]) ||
+    //                     SYMBOL_SOUNDS[line.symbol_id]);
+    //             if (sound) play(sound, { singleInstance: true });
+    //         },
+    //     );
+    //     eventBus.on(
+    //         EVENT_NAMES.RADIAL_FEATURE_SYMBOLS_SHOWN,
+    //         ({ triggerMini, isRespin }) => {
+    //             if (triggerMini)
+    //                 play("sfx_knightdark", { singleInstance: true });
+    //             else if (isRespin)
+    //                 play("sfx_saruman", { singleInstance: true });
+    //         },
+    //     );
+    //     eventBus.on(EVENT_NAMES.RADIAL_SPECIAL_STATES_SHOWN, () =>
+    //         play("sfx_tpf_wild", { singleInstance: true }),
+    //     );
+    //     const startBonusMusic = () => {
+    //         this.bonusGameActive = true;
+    //         this.setMusic("bgm_bonus");
+    //     };
+    //     eventBus.on(EVENT_NAMES.BONUS_GAME_STARTED, startBonusMusic);
+    //     eventBus.on(EVENT_NAMES.MINIGAME_STARTED, startBonusMusic);
+    //     eventBus.on(EVENT_NAMES.BONUS_GAME_ENDED, () => {
+    //         this.bonusGameActive = false;
+    //         this.setMusic(this.stageMusicName);
+    //     });
+    //     eventBus.on(EVENT_NAMES.AUDIO_BONUS_WIN_POPUP_SHOWN, () =>
+    //         play("sfx_bonus_win", { singleInstance: true }),
+    //     );
+    //     eventBus.on(EVENT_NAMES.AUDIO_BONUS_LOSE_POPUP_SHOWN, () =>
+    //         play("sfx_bonus_lose", { singleInstance: true }),
+    //     );
+    //     eventBus.on(EVENT_NAMES.AUDIO_JACKPOT_SHOWN, () =>
+    //         this.playExclusiveSfx("sfx_jackpot", "jackpot"),
+    //     );
+    // }
 
-        eventBus.on(EVENT_NAMES.BET_LEVEL_CHANGED, () =>
-            play("button_click_blevel"),
-        );
-        eventBus.on(EVENT_NAMES.SPIN_REQUEST, (request) => {
-            if (!request?.instantStop) play("button_click_spin");
+    private mountGoalSources() {
+        this.add("bgSound.mp3", bgSoundUrl);
+        this.add("btn.mp3", btnUrl);
+        this.add("click.mp3", clickUrl);
+        this.add("coin.mp3", coinUrl);
+        this.add("win.mp3", winUrl);
+        this.add("boom.mp3", boomUrl);
+    }
+
+    private setupGoalSounds() {
+        if (this.goalSoundsBound) return;
+        this.goalSoundsBound = true;
+        goalEvents.on(GOAL_EVENT_NAMES.BET_LEVEL_CHANGED, () => {
+            void this.play("sfx_btn", { singleInstance: true });
         });
-        eventBus.on(EVENT_NAMES.AUDIO_BUTTON_OTHER_CLICKED, () =>
-            play("button_click_other"),
-        );
-        eventBus.on(EVENT_NAMES.TURBO_CHANGED, (turbo) =>
-            play(turbo ? "button_turbo" : "button_click_other", {
-                volume: turbo ? 1.5 : 1,
-            }),
-        );
-        eventBus.on(EVENT_NAMES.AUDIO_PAGE_CHANGED, () => play("sfx_page"));
-        eventBus.on(EVENT_NAMES.SPIN_STATE_CHANGED, (spinning) => {
-            if (spinning)
-                play("sfx_rolling", { loop: true, singleInstance: true });
-            else this.stopSfx("sfx_rolling");
+        goalEvents.on(GOAL_EVENT_NAMES.SCREEN, () => {
+            this.followGoalRound();
         });
-        eventBus.on(EVENT_NAMES.AUDIO_REEL_STOPPED, () => play("sfx_stop"));
-        eventBus.on(EVENT_NAMES.AUDIO_REELS_STOPPED, () =>
-            this.stopSfx("sfx_rolling"),
-        );
-        eventBus.on(EVENT_NAMES.AUDIO_WIN_LOW, () => play("sfx_win_low"));
-        eventBus.on(EVENT_NAMES.AUDIO_WIN_HIGH, () => play("sfx_win_high"));
-        eventBus.on(EVENT_NAMES.AUDIO_WINLINE_SHOWN, () => play("sfx_winline"));
-        eventBus.on(EVENT_NAMES.AUDIO_WILD_WIN_SHOWN, () =>
-            play("sfx_tpf_wild"),
-        );
-        eventBus.on(EVENT_NAMES.AUDIO_WIN_AMOUNT_STARTED, () =>
-            play("sfx_win_amount", { loop: true, singleInstance: true }),
-        );
-        eventBus.on(EVENT_NAMES.AUDIO_WIN_AMOUNT_STOPPED, () =>
-            this.stopSfx("sfx_win_amount"),
-        );
-        eventBus.on(EVENT_NAMES.AUDIO_BIGWIN_AMOUNT_STARTED, () =>
-            play("sfx_bigwin_amount", { singleInstance: true }),
-        );
-        eventBus.on(EVENT_NAMES.AUDIO_BIGWIN_AMOUNT_STOPPED, () =>
-            this.stopSfx("sfx_bigwin_amount"),
-        );
-        eventBus.on(EVENT_NAMES.AUDIO_BIGWIN_POPUP_SHOWN, (level) => {
-            this.stopSfx("sfx_rolling");
-            this.playExclusiveSfx(
-                level === "mega"
-                    ? "sfx_megawin"
-                    : level === "ultra"
-                      ? "sfx_ultrawin"
-                      : "sfx_bigwin_popup",
-                "bigwin-popup",
+    }
+
+    armOutcome() {
+        this.outcomeArmed = true;
+    }
+
+    private followGoalRound() {
+        const round = goalState.round;
+        const cleared = round.phase === "standby" ? 0 : round.clearedColumns;
+        const armed = this.outcomeArmed;
+        this.outcomeArmed = false;
+        if (armed && this.goalPhase === "playing" && round.phase === "ended") {
+            const exploded = goalState.cells.some((column) =>
+                column.some((cell) => cell.mark === "explode"),
             );
-        });
-        eventBus.on(
-            EVENT_NAMES.RADIAL_WIN_LINES_SHOWN,
-            ({ winLines }: { winLines: WinLine[] }) => {
-                const line =
-                    winLines.find(
-                        (line) => line.lore_id && LORE_SOUNDS[line.lore_id],
-                    ) ?? winLines.find((line) => SYMBOL_SOUNDS[line.symbol_id]);
-                const sound =
-                    line &&
-                    ((line.lore_id && LORE_SOUNDS[line.lore_id]) ||
-                        SYMBOL_SOUNDS[line.symbol_id]);
-                if (sound) play(sound, { singleInstance: true });
-            },
-        );
-        eventBus.on(
-            EVENT_NAMES.RADIAL_FEATURE_SYMBOLS_SHOWN,
-            ({ triggerMini, isRespin }) => {
-                if (triggerMini)
-                    play("sfx_knightdark", { singleInstance: true });
-                else if (isRespin)
-                    play("sfx_saruman", { singleInstance: true });
-            },
-        );
-        eventBus.on(EVENT_NAMES.RADIAL_SPECIAL_STATES_SHOWN, () =>
-            play("sfx_tpf_wild", { singleInstance: true }),
-        );
-        const startBonusMusic = () => {
-            this.bonusGameActive = true;
-            this.setMusic("bgm_bonus");
-        };
-        eventBus.on(EVENT_NAMES.BONUS_GAME_STARTED, startBonusMusic);
-        eventBus.on(EVENT_NAMES.MINIGAME_STARTED, startBonusMusic);
-        eventBus.on(EVENT_NAMES.BONUS_GAME_ENDED, () => {
-            this.bonusGameActive = false;
-            this.setMusic(this.stageMusicName);
-        });
-        eventBus.on(EVENT_NAMES.AUDIO_BONUS_WIN_POPUP_SHOWN, () =>
-            play("sfx_bonus_win", { singleInstance: true }),
-        );
-        eventBus.on(EVENT_NAMES.AUDIO_BONUS_LOSE_POPUP_SHOWN, () =>
-            play("sfx_bonus_lose", { singleInstance: true }),
-        );
-        eventBus.on(EVENT_NAMES.AUDIO_JACKPOT_SHOWN, () =>
-            this.playExclusiveSfx("sfx_jackpot", "jackpot"),
-        );
+            if (exploded) {
+                void this.play("sfx_boom", { singleInstance: true });
+            } else if (cleared > 0) {
+                void this.play("sfx_win", { singleInstance: true });
+            }
+        }
+        this.goalPhase = round.phase;
     }
 
     private initWebAudio() {
@@ -343,6 +403,7 @@ class AudioSystem {
         this.music.muted = this.musicMuted;
         this.music.setAttribute("playsinline", "");
         this.music.load();
+        void this.playMusic();
     }
 
     private async loadBuffer(name: SoundName, url: string) {
@@ -369,7 +430,6 @@ class AudioSystem {
         const music = this.music;
         if (
             !music ||
-            !this.audioUnlocked ||
             this.lifecyclePaused ||
             this.musicMuted ||
             this.musicPauseRequests.size > 0 ||
@@ -384,8 +444,12 @@ class AudioSystem {
             (MUSIC_VOLUME_SCALE[this.musicName] ?? 1);
         try {
             await music.play();
+            this.audioUnlocked = true;
+            void this.resumeAudioContext();
         } catch (error) {
-            console.warn("[Audio] Failed to play bgm_main:", error);
+            const blocked =
+                error instanceof DOMException && error.name === "NotAllowedError";
+            if (!blocked) console.warn("[Audio] Failed to play bgm_main:", error);
         }
     }
 

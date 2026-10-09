@@ -1,114 +1,110 @@
 # Plan Goal
 
-Push your luck. Sói đói vượt bẫy của thợ săn để bắt cừu. RTP ước tính 97%. Cảm giác chơi tham chiếu [Spribe Goal](https://spribe.co/games/goal). Sản phẩm này là một bàn cố định, không có Field Small / Medium / Large, không có Auto Game, không có mức cược USD 0.10–100.
+Sói đói đi từ trái sang phải, mỗi cột chọn một ô. Server đặt bom lúc bấm PLAY. Client chỉ gửi lựa chọn và vẽ theo tin server trả.
 
-Bàn quay slot đã xóa. `GameScene` gọi `goalEngine` rồi `GameBoard` vẽ. Engine và socket slot còn trên đĩa. Số bàn, B Level, hệ số, và 30 giây nằm ở `src/modules/game/engine/game.constants.ts`. Luật nằm ở `game.engine.ts` (`goalEngine`) và ghi vào `goalState`. Tiền trên CASHOUT là B Level nhân hệ số của cột vừa đi qua. Sau cột 1, mức `1,000,000` thành `1,290,000`.
+Bàn 7 cột, mỗi cột 4 ô, mỗi cột một bom. Hệ số cột 1 đến 7: `1.29`, `1.72`, `2.29`, `3.06`, `4.08`, `5.45`, `7.26`.
 
-## Bàn
+Mức bet: `10000`, `20000`, `50000`, `100000`, `200000`, `500000`, `1000000`. Chữ trên ô là `Bet Level 1` đến `Bet Level 7` kèm số tiền. Mức 1 khóa nút trừ. Mức 7 khóa nút cộng.
 
-7 cột, mỗi cột 4 ô. Sói đi từ cột trái sang cột phải. Mỗi lượt chỉ được chọn một ô trong cột đang sáng.
+Ba pha: `standby`, `playing`, `ended`.
 
-| Cột / bước | Hệ số |
+## Nút nào bật
+
+Đang chờ server trả lời thì mọi nút khóa. Server từ chối thì bàn không đổi, chỉ hiện câu lỗi.
+
+Chọn bet gồm bấm cộng, trừ, hoặc một dòng trong danh sách, kể cả chọn lại đúng mức đang hiện. Chưa chọn thì PLAY tắt.
+
+### Chưa vào ván
+
+| Nút | Vừa vào game | Đã chọn bet | Sau Reset Bet |
+| --- | --- | --- | --- |
+| PLAY | tắt | bật | tắt, chọn lại bet thì bật |
+| RANDOM | tắt | tắt | tắt |
+| Reset Bet | tắt | tắt | tắt |
+| Bet, cộng, trừ | bật | bật | bật |
+| History | bật | bật | bật |
+| Ô trên bàn | không bấm | không bấm | không bấm |
+
+### Đang chơi
+
+| Nút | Chưa qua cột nào | Đã qua ít nhất một cột |
+| --- | --- | --- |
+| CASHOUT | tắt | bật, hiện số tiền |
+| RANDOM | bật | bật |
+| Reset Bet | tắt | tắt |
+| Bet, cộng, trừ | tắt, chữ xám | tắt, chữ xám |
+| History | tắt | tắt |
+| Ô trên bàn | chỉ cột đang sáng | chỉ cột đang sáng |
+
+### Hết ván
+
+| Nút | Trạng thái |
 | --- | --- |
-| 1 | 1.29 |
-| 2 | 1.72 |
-| 3 | 2.29 |
-| 4 | 3.06 |
-| 5 | 4.08 |
-| 6 | 5.45 |
-| 7 | 7.26 |
+| PLAY | bật |
+| RANDOM | tắt |
+| Reset Bet | bật |
+| Bet, cộng, trừ | tắt, chữ xám |
+| History | bật |
+| Ô trên bàn | không bấm |
 
-## B Level
+## Một ván
 
-Người chơi chọn một mức trước khi PLAY.
+1. Chọn mức bet. Bấm PLAY. Client gửi `202`.
+2. Server đặt bom, giấu, trả `101`. Cột 1 sáng. Các ô trống. Đồng hồ bắt đầu đếm.
+3. User bấm một ô, hoặc RANDOM, hoặc CASHOUT khi đã qua ít nhất một cột.
+4. Client gửi lượt đang mở và ô đã chọn. Không gửi số cột. Server biết lượt đó là cột nào.
+5. Server so với bom đã đặt rồi trả `101`.
+6. An toàn: ô vừa bấm là bóng, các ô an toàn trước đó là chấm. Cột đó chưa vẽ bom. Sáng cột kế. Số trên CASHOUT là tiền đang rút được. CASHOUT mở.
+7. Hết ván thì vào `ended`. Bàn và số giây đang hiện giữ nguyên. PLAY và Reset Bet bật.
 
-`10000`, `20000`, `50000`, `100000`, `200000`, `500000`, `1000000`.
+Bấm PLAY lúc `ended` gửi `202` với mức bet đang chọn. Khung ván mới xóa dấu ván cũ.
 
-Mặc định là mức 1, `10,000`, chữ trên ô là `Bet Level 1`. Bấm cộng tăng số mức và hiện đúng số tiền của mức đó. Mức 1 khóa nút trừ. Mức 7 khóa nút cộng. Ô giữa bấm được và mở danh sách 7 mức, `Bet Level 1` đến `Bet Level 7`, kèm số tiền của mức đó. Nút Reset Bet giữ nguyên mức đang chọn. STANDBY khóa Reset Bet. Trong ván, danh sách, Reset Bet, nút History và hai nút cộng trừ khóa. Chữ trên nút khóa màu xám.
+Reset Bet không gửi server. Pha về `standby`, giữ mức bet, giữ bàn, giữ số giây. PLAY tắt. Chọn lại bet thì PLAY bật. Bấm PLAY mới xóa bàn và mở ván mới.
 
-## Hai pha
+## Hết ván thì vẽ gì
 
-### STANDBY
+Đang chơi chỉ vẽ dấu ô đã chọn. Bom hiện khi ván kết thúc, kể cả cột đã đi và cột chưa đi.
 
-- Chọn B Level.
-- RANDOM khóa.
-- Nút chính là PLAY.
-- PLAY trừ tiền và mở ván. Không đủ số dư thì ván không đổi.
+| Cách hết | Cột đã đi | Cột chưa đi | Bom |
+| --- | --- | --- | --- |
+| Đi hết 7 cột | dấu, nền thường | không còn | hiện hết |
+| CASHOUT | dấu, nền thường | nền đỏ | hiện hết |
+| Đạp trúng bom | dấu, nền thường | từ cột trúng nền đỏ, ô vừa bấm là nổ | hiện hết |
+| Hết giờ, chưa đi ô nào | — | mọi ô nền đỏ | hiện hết |
+| Hết giờ, đã qua cột | dấu, nền thường | nền đỏ | hiện hết |
 
-### GAME
+Đồng hồ luôn hiện khi còn số giây. Đang chơi thì đếm tới mốc giờ server gửi. Về 0 client không tự xử thắng thua. Server hết giờ thì tự trả `101`: người còn nối thì server tự chọn một ô; người rời máy ở lượt đầu thì hoàn tiền cược; người rời máy sau đó thì tự cashout số đang có.
 
-Bắt đầu khi bấm PLAY.
+Chưa chốt: hết ván mà số dư không đủ mức bet đang chọn thì PLAY xử lý thế nào. Hiện PLAY vẫn sáng, bấm vào server từ chối và báo thiếu tiền.
 
-- Khóa B Level.
-- PLAY đổi thành CASHOUT. Lượt đầu CASHOUT khóa.
-- RANDOM mở.
-- Cột đang chơi sáng, kèm hệ số của cột đó. Hệ số các cột đã qua giữ lại, màu xám.
-- Một đồng hồ 30 giây cho cả ván, bắt đầu khi bấm PLAY, không đặt lại theo từng cột. Đồng hồ luôn hiện.
-- Người chơi chọn 1 trong 4 ô của cột đó, hoặc bấm RANDOM.
+## Client gửi, server trả
 
-RANDOM chọn một ô trong cột đang sáng. Hết 30 giây mà chưa đi ô nào thì thua, tiền cược mất, mọi ô nền hồng. Đã qua ít nhất một cột thì tự cashout số đang hiện trên nút. Nguồn random là tham số đưa vào engine.
+Số là field `c` của gói.
 
-## Kết quả một lượt
+### Client gửi
 
-**Bẫy.** Sói chết. Ván kết thúc, về STANDBY. Tiền cược đã mất.
+| Mã | Bấm | Gửi |
+| --- | --- | --- |
+| 202 | PLAY | `level`, ví dụ `10000`. Mã mức, không phải số tiền |
+| 203 | một ô | `ordinal`, `slot` từ `0` đến `3` |
+| 204 | RANDOM | `ordinal` |
+| 205 | CASHOUT | `ordinal`. Không gửi ở lượt đầu |
+| 206 | xem lại ván | `{}` |
+| 402 | lịch sử | `page`, `limit` |
 
-**An toàn.** Ô vừa chọn hiện trái bóng. Cột đó không vẽ quả bom. Các ô an toàn của cột trước đó là dấu chấm. Tiền thắng hiện tại ghi lên nút CASHOUT. Sáng cột kế tiếp và hệ số của cột đó. CASHOUT mở, người chơi được rút.
+### Server trả
 
-Tiền trên nút là B Level nhân hệ số của cột vừa đi qua. Qua cột 1 thì `1,000,000` thành `1,290,000`. Wireframe vẽ `1,720,000` cạnh nhãn `1.72x` khi cột 2 đang sáng. Bảng hệ số trong rule lấy `1.29` cho cột 1.
+| Mã | Lúc nào | Client làm |
+| --- | --- | --- |
+| 100 | vừa nối | hiện mức bet và bàn |
+| 101 | sau PLAY, sau mỗi ô, RANDOM, CASHOUT, hoặc hết giờ | vẽ bàn |
+| 206 | trả lời mã 206 | vẽ lại bàn, cùng dạng với 100 |
+| 196 | số dư đổi | sửa Balance |
+| 199 | từ chối | không đổi bàn, hiện câu lỗi |
+| 452 | trả lời mã 402 | hiện danh sách ván |
 
-## Ván kết thúc
+Hết ván, gói 101 có `done` và một lý do: `trap`, `cashout`, `cashout_inactive`, `abandoned_at_start`, `max`.
 
-| Cách | Việc |
-| --- | --- |
-| Dính bẫy | Cột dính bẫy trở đi nền hồng. Ô vừa bấm hiện `mark-explode`. Các ô bẫy khác hiện quả boom. Ván vào `ended` |
-| Bấm CASHOUT | Nhận tiền đang hiện trên nút. Hiện mọi ô bẫy. Ván vào `ended` |
-| Sống sót cột 7 | Tự cashout ở hệ số 7.26. Hiện mọi ô bẫy. Ván vào `ended` |
-| Hết 30 giây, chưa đi ô nào | Thua. Không cộng tiền. Mọi ô nền hồng và hiện ô bẫy. Ván vào `ended` |
-| Hết 30 giây, đã qua cột | Tự cashout số trên nút. Hiện mọi ô bẫy. Ván vào `ended` |
+`ordinal` gửi đi bằng số lượt của khung vừa nhận cộng 1. Khung chia bài là lượt 1, nên ô đầu tiên gửi `ordinal` 2. Gửi sai lượt thì server từ chối, bàn không đổi.
 
-`ended` giữ nguyên bàn và số giây đang hiện. PLAY và Reset Bet bật. Bấm PLAY bắt đầu ván mới. Reset Bet về STANDBY: bàn và mức bet giữ nguyên, nút bet bật, PLAY khóa đến khi chọn lại mức. Chọn xong thì PLAY bật, bấm PLAY mới vào ván mới.
-
-Lượt đầu không được cashout. Sau ô an toàn đầu tiên mới rút được.
-
-Chưa chốt: hết ván mà số dư không đủ mức bet đang chọn thì PLAY xử lý thế nào. Hiện PLAY vẫn sáng, bấm vào chỉ báo thiếu tiền.
-
-## Wireframe
-
-Hai khung, ngang và dọc. Nền đen, ô bo góc.
-
-Trên bàn: hệ số cột đã qua màu xám, hệ số cột đang tới màu sáng. Góc phải: nút `i`, nút `H`, nút `S`.
-
-Cột đã đi an toàn: chỉ dấu ô vừa chọn. Cột đang chơi: cả cột sáng hơn. Bom của cột chưa đi chỉ hiện khi ván kết thúc.
-
-Thanh ngang: Balance, RANDOM, CASHOUT kèm số tiền, Bet Level với trừ và cộng.
-
-Thanh dọc: RANDOM, nút PLAY, rồi Balance và Bet Level. Rule viết chữ trên nút chính: STANDBY là PLAY, trong ván là CASHOUT.
-
-## Chưa có trong rule
-
-Không bịa thêm.
-
-- Mỗi cột có bao nhiêu bẫy, và ô nào là bẫy.
-- Cách hiện bom và bóng: wireframe chỉ cho thấy cột đã xong có một bom và một bóng.
-- Opcode, ai rút ô bẫy (máy chủ hay client).
-- Công thức để RTP đúng 97%. Bảng hệ số đã có, xác suất bẫy thì chưa.
-- Chữ trên nút `i` và `S`. Khung vẽ hai nút đó, rule không mô tả.
-
-## Lát làm
-
-1. Docker và nền xanh. Đã xong.
-2. Hằng số bàn, B Level, hệ số, 30 giây. Đã nằm ở `src/shared/constants/goal.ts`.
-3. Engine thuần. Nằm ở `src/modules/game/engine/game.engine.ts` (`goalEngine`). Kết quả an toàn hoặc bẫy là tham số. `RandomSlot` nhận một số trong khoảng 0 đến 1.
-4. Scene vẽ bàn theo wireframe: lưới 7×4, cột sáng, bom và bóng, hệ số, thanh ngang và thanh dọc. Khung mở là ảnh giữa ván. CASHOUT trên khung đó về STANDBY, chưa cộng tiền.
-5. Trong ván: sáng cột, RANDOM, CASHOUT khóa rồi mở, một ô chọn đổi một kết quả.
-6. Đếm 30 giây. Hết giờ thì cùng đường với RANDOM.
-7. Cột 7 an toàn thì tự cashout.
-8. Khung ngang và khung dọc. Nút `i` và `S` sau, khi có nội dung.
-
-## Việc đã xóa
-
-Bàn quay, bonus, map, spine slot, HUD slot, `LoadingView`, art slot, `public/assets`, `dist`, folder `mockup/`, và `scripts/generate-wheel-symbol-masks.mjs`. Hình Goal đang ở `raw-assets/background{m}{copy}/`, `raw-assets/icons{m}{copy}/`, và `raw-assets/board{m}{copy}/`. Ô có 3 màu: `cell-normal`, `cell-active`, `cell-explode`. Icon trên ô: `mark-ball`, `mark-bomb`, `mark-explode`, `mark-bullet`. Nút có `normal`, `hover`, `active`. Chưa chạy assetpack. Bàn nạp SVG trực tiếp.
-
-## Chưa comment
-
-Engine slot, handler, `audio.config.ts`, câu chữ trong `src/shared/i18n/`, và `cheat-tool.ts` vẫn là file TypeScript sống. Boot không vẽ bàn quay. `main.ts` không gọi cheat tool. Cắt khi lát engine Goal thay chỗ đó.
+Một vòng bấm ô là 203 đi, 101 về. PLAY là 202 đi, 101 về với bom còn giấu. Cột vừa đi thì mask cột đó hết `null`: bit `i` bật nghĩa là ô `i` là bom. `turn.trap` là true thì ô vừa bấm nổ. Không có `trap` thì ô đó an toàn. Hai thứ này là một kết quả từ server.

@@ -1,6 +1,6 @@
-import { GOAL_COLUMN_COUNT, GOAL_SLOT_COUNT, GOAL_TURN_MS } from "./game.constants";
+import { GOAL_COLUMN_COUNT, GOAL_ERROR_CODES, GOAL_SLOT_COUNT, GOAL_TURN_MS } from "./game.constants";
 import { GOAL_EVENT_NAMES, goalEvents } from "./game.events";
-import { goalState } from "./game.state";
+import { gameState, goalState } from "./game.state";
 import type {
     GoalCellFace,
     GoalCellMark,
@@ -11,6 +11,7 @@ import type {
     GoalPlaying,
     GoalStatusFrame,
     GoalWireFinished,
+    GoalRoundResult,
     GoalWireOpen,
     GoalWireTurn,
 } from "./game.types";
@@ -60,8 +61,11 @@ function applyFrame(frame: GoalStatusFrame) {
     if (!frame || !Array.isArray(board) || frame.ordinal === undefined) return;
 
     const ticket = frame.ticket_id ?? heldTicket ?? "";
+    const sameTicket = heldTicket !== null && ticket === heldTicket;
+    const opening = frame.kind === "deal" || frame.ordinal === 1;
     if (
-        ticket === heldTicket &&
+        sameTicket &&
+        !opening &&
         heldOrdinal !== null &&
         frame.ordinal <= heldOrdinal
     ) {
@@ -70,6 +74,7 @@ function applyFrame(frame: GoalStatusFrame) {
         return;
     }
 
+    if (!sameTicket || opening) heldTurns = [];
     heldTicket = ticket;
     heldOrdinal = frame.ordinal;
     goalState.answerOrdinal = frame.ordinal + 1;
@@ -93,6 +98,12 @@ function applyFrame(frame: GoalStatusFrame) {
     });
     if (done) {
         goalState.deadlineMs = null;
+        publishResult(
+            frame.payload?.ending,
+            frame.payload?.turn?.trap === true,
+            bet,
+            frame.win ?? frame.payload?.current_win ?? 0,
+        );
     } else {
         armDeadline(frame.deadline_ms);
     }
@@ -104,6 +115,13 @@ function applyError(frame: GoalErrorFrame) {
     if (!frame?.errc && !frame?.error) return;
 
     goalState.notice = frame.error ?? frame.errc ?? null;
+    if (
+        frame.errc === GOAL_ERROR_CODES.INSUFFICIENT_BALANCE ||
+        frame.err === 3 ||
+        frame.errc === "3"
+    ) {
+        goalState.error = GOAL_ERROR_CODES.INSUFFICIENT_BALANCE;
+    }
     unlock();
     goalEvents.emit(GOAL_EVENT_NAMES.ERROR, goalState.notice);
 }
@@ -185,7 +203,36 @@ function showFinished(finished: GoalWireFinished) {
         activeColumn: null,
     });
     unlock();
+    publishResult(
+        finished.ending,
+        finished.ending === "trap",
+        finished.bet ?? goalState.round.betLevel,
+        finished.win ?? 0,
+    );
     emitScreen();
+}
+
+function publishResult(ending: string | undefined, trap: boolean, bet: number, currentWin: number) {
+    const result = roundResult(ending, trap, bet, currentWin);
+    if (!result) return;
+
+    goalEvents.emit(GOAL_EVENT_NAMES.ROUND_RESULT, result);
+}
+
+function roundResult(
+    ending: string | undefined,
+    trap: boolean,
+    bet: number,
+    currentWin: number,
+): GoalRoundResult | null {
+    if (ending === "abandoned_at_start") return null;
+    if (trap || ending === "trap") {
+        return { won: false, bet, amount: bet, balance: gameState.balance };
+    }
+    if (currentWin > 0) {
+        return { won: true, bet, amount: currentWin, balance: gameState.balance };
+    }
+    return null;
 }
 
 function applyConfig(config: GoalGameConfig) {
@@ -249,6 +296,9 @@ function paintRound(screen: {
         clearedPicks,
         screen.done ? null : screen.activeColumn,
         screen.pinkFrom,
+        screen.done,
+        screen.cleared,
+        screen.ending,
     );
 }
 
@@ -257,16 +307,24 @@ function facesFor(
     picks: { column: number; slot: number }[],
     activeColumn: number | null,
     pinkFrom: number | null,
+    done: boolean,
+    cleared: number,
+    ending?: string,
 ): GoalCellFace[][] {
     const faces = blankFaces();
     const safeColumns = new Set(picks.map((pick) => pick.column));
+    const walkedAll = ending === "max" || cleared >= GOAL_COLUMN_COUNT;
     for (let column = 0; column < GOAL_COLUMN_COUNT; column += 1) {
-        const pink = pinkFrom !== null && column >= pinkFrom;
+        const pink = done && (
+            pinkFrom !== null
+                ? column >= pinkFrom
+                : !walkedAll && column >= cleared
+        );
         const mask = board[column];
         for (let slot = 0; slot < GOAL_SLOT_COUNT; slot += 1) {
             const active = activeColumn === column && !pink;
             const trap =
-                !safeColumns.has(column) &&
+                (done || !safeColumns.has(column)) &&
                 mask !== null &&
                 mask !== undefined &&
                 (mask & (1 << slot)) !== 0;

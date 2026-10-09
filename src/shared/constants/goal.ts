@@ -6,5 +6,6 @@ export const GOAL_READOUT = 0x161616;
 export const GOAL_READOUT_EDGE = 0x3a3a3a;
 export const GOAL_KNOB = 0x1e3a28;
 export const GOAL_KNOB_EDGE = 0x8ed18a;
+export const GOAL_EXPLODE = 0xa85c64;
 export const GOAL_MENU = 0x101610;
 export const GOAL_MENU_ROW = 0x1a241c;

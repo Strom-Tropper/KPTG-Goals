@@ -1,5 +1,6 @@
 import { Container, Graphics, Text } from "pixi.js";
 import {
+    balanceReadout,
     betMenu,
     betStepper,
     circleButton,
@@ -104,7 +105,7 @@ export type GameBoardModel = {
     resetText: string;
     resetEnabled: boolean;
     historyEnabled: boolean;
-    notice: string | null;
+    soundMuted: boolean;
 };
 
 export type GoalMultiplierMark = {
@@ -121,6 +122,9 @@ export type GameBoardActions = {
     onMain: () => void;
     onPick: (slot: number) => void;
     onRandom: () => void;
+    onInfo: () => void;
+    onHistory: () => void;
+    onSound: () => void;
 };
 
 export class GameBoard extends Container {
@@ -175,24 +179,17 @@ export class GameBoard extends Container {
         this.drawGrid(gridX, gridY, grid, model.cells, art);
         this.drawMultipliers(gridX, gridY, grid, model);
         this.drawSideRail(model, art, frameRight, gridY);
-        this.drawNotice(
-            model,
-            gridX + grid.outerW / 2,
-            edge * 0.7,
-            Math.max(16, Math.round(baseH * 0.32)),
-        );
 
         const row = placeBottomRow(gridX, grid.outerW, boardBottom, baseH);
         const betMetrics = betControlMetrics(row.bet.height);
         this.addChild(
-            valueReadout(
+            balanceReadout(
                 row.balance.x,
                 row.balance.y,
                 row.balance.width,
                 row.balance.height,
-                model.balanceDetail
-                    ? [model.balanceText, model.balanceDetail]
-                    : [model.balanceText],
+                model.balanceText,
+                model.balanceDetail,
             ),
         );
         this.addChild(
@@ -279,12 +276,6 @@ export class GameBoard extends Container {
         this.drawGrid(gridX, gridY, grid, model.cells, art);
         this.drawMultipliers(gridX, gridY, grid, model);
         this.drawSideRail(model, art, gridX + grid.outerW, gridY);
-        this.drawNotice(
-            model,
-            model.width / 2,
-            edge * 0.7,
-            Math.max(14, Math.round(buttonH * 0.32)),
-        );
 
         const buttonW = Math.round(grid.outerW * 0.46);
         const centerX = model.width / 2 - buttonW / 2;
@@ -338,14 +329,13 @@ export class GameBoard extends Container {
         const betW = Math.round(grid.outerW * 0.5);
         const betX = gridX + grid.outerW - betW;
         this.addChild(
-            valueReadout(
+            balanceReadout(
                 gridX,
                 y,
                 balanceW,
                 buttonH,
-                model.balanceDetail
-                    ? [model.balanceText, model.balanceDetail]
-                    : [model.balanceText],
+                model.balanceText,
+                model.balanceDetail,
             ),
         );
         this.addChild(
@@ -433,17 +423,6 @@ export class GameBoard extends Container {
         clock.text = String(seconds);
     }
 
-    private drawNotice(
-        model: GameBoardModel,
-        x: number,
-        y: number,
-        fontSize: number,
-    ): void {
-        if (!model.notice) return;
-
-        this.addChild(goalLabel(model.notice, x, y, fontSize));
-    }
-
     private drawSideRail(
         model: GameBoardModel,
         art: GameBoardArt,
@@ -453,7 +432,17 @@ export class GameBoard extends Container {
         const base = controlHeight(Math.min(model.width, model.height), railControls.size);
         const rail = placeRail(frameRight, frameTop, base);
         this.drawTimerKnob(model, rail.timer);
-        this.addChild(circleButton(rail.sound.cx, rail.sound.cy, rail.sound.width, rail.sound.height, art.sound));
+        this.addChild(
+            circleButton(
+                rail.sound.cx,
+                rail.sound.cy,
+                rail.sound.width,
+                rail.sound.height,
+                model.soundMuted ? art.soundOff : art.sound,
+                true,
+                this.actions.onSound,
+            ),
+        );
         this.addChild(
             circleButton(
                 rail.history.cx,
@@ -462,9 +451,20 @@ export class GameBoard extends Container {
                 rail.history.height,
                 art.history,
                 model.historyEnabled,
+                this.actions.onHistory,
             ),
         );
-        this.addChild(circleButton(rail.info.cx, rail.info.cy, rail.info.width, rail.info.height, art.info));
+        this.addChild(
+            circleButton(
+                rail.info.cx,
+                rail.info.cy,
+                rail.info.width,
+                rail.info.height,
+                art.info,
+                true,
+                this.actions.onInfo,
+            ),
+        );
     }
 
     private drawTimerKnob(model: GameBoardModel, knobBox: RailRect): void {

@@ -2,12 +2,16 @@ import { Application, Renderer } from "pixi.js";
 import type { Scene } from "@/scenes/Scene";
 import { GameBoard } from "@/scenes/GameBoard";
 import { loadGameBoardArt } from "@/scenes/GameBoardArt";
+import { GameNoticePopup } from "@/components/GameNoticePopup";
 import { GOAL_ERROR_CODES, goalMultiplierText } from "@/modules/game/engine/game.constants";
 import { goalEngine } from "@/modules/game/engine/game.engine";
 import { EVENT_NAMES, eventBus, GOAL_EVENT_NAMES, goalEvents } from "@/modules/game/engine/game.events";
 import { goalSession } from "@/modules/game/engine/game.session";
 import { gameState, goalState } from "@/modules/game/engine/game.state";
+import type { GoalRoundResult } from "@/modules/game/engine/game.types";
 import { gameRequests } from "@/modules/game/handlers/game.requests";
+import { audioSystem } from "@/systems/audio";
+import type { SoundName } from "@/systems/audio.config";
 import { i18n } from "@/shared/i18n/I18nManager";
 import { format } from "@/shared/utils/formatNumber";
 
@@ -19,6 +23,8 @@ export class GameScene implements Scene {
     private turnId = 0;
     private readonly unlisten: Array<() => void> = [];
     private destroyed = false;
+    private resolveReady = (): void => {};
+    readonly ready: Promise<void>;
 
     constructor(
         app: Application<Renderer>,
@@ -26,6 +32,9 @@ export class GameScene implements Scene {
         _initialLanguage: string,
         _audioUrls: ReadonlyMap<string, string>,
     ) {
+        this.ready = new Promise((resolve) => {
+            this.resolveReady = resolve;
+        });
         this.app = app;
         this.board = new GameBoard({
             onBet: this.onBet,
@@ -35,6 +44,9 @@ export class GameScene implements Scene {
             onMain: this.onMain,
             onPick: this.onPick,
             onRandom: this.onRandom,
+            onInfo: this.onInfo,
+            onHistory: this.onHistory,
+            onSound: this.onSound,
         });
         this.app.stage.addChild(this.board);
         this.listen();
@@ -42,12 +54,16 @@ export class GameScene implements Scene {
     }
 
     private mount = async (): Promise<void> => {
-        const art = await loadGameBoardArt();
-        if (this.destroyed) return;
+        try {
+            const art = await loadGameBoardArt();
+            if (this.destroyed) return;
 
-        this.board.setArt(art);
-        this.paint();
-        this.app.renderer.on("resize", this.paint);
+            this.board.setArt(art);
+            this.paint();
+            this.app.renderer.on("resize", this.paint);
+        } finally {
+            this.resolveReady();
+        }
     };
 
     pause(): void {}
@@ -61,6 +77,7 @@ export class GameScene implements Scene {
         for (const stop of this.unlisten) stop();
         this.unlisten.length = 0;
         this.clearTurnTimer();
+        GameNoticePopup.close();
         this.app.renderer.off("resize", this.paint);
         this.board.destroy({ children: true });
     }
@@ -111,14 +128,17 @@ export class GameScene implements Scene {
             resetText: i18n.t("goal.resetBet"),
             resetEnabled: goalEngine.CanReset(),
             historyEnabled: round.phase !== "playing",
-            notice: this.notice(),
+            soundMuted: audioSystem.isOutputMuted(),
         });
     };
 
     private listen(): void {
         this.unlisten.push(
             goalEvents.on(GOAL_EVENT_NAMES.BET_LEVEL_CHANGED, () => this.paint()),
-            goalEvents.on(GOAL_EVENT_NAMES.ERROR, () => this.paint()),
+            goalEvents.on(GOAL_EVENT_NAMES.ERROR, () => {
+                this.presentNotice();
+                this.paint();
+            }),
             goalEvents.on(GOAL_EVENT_NAMES.PRESENTATION_LOCK_CHANGED, () => this.paint()),
             goalEvents.on(GOAL_EVENT_NAMES.BET_LIST_CHANGED, () => this.paint()),
             goalEvents.on(GOAL_EVENT_NAMES.SECONDS_CHANGED, () => {
@@ -127,6 +147,9 @@ export class GameScene implements Scene {
             goalEvents.on(GOAL_EVENT_NAMES.SCREEN, () => {
                 this.followDeadline();
                 this.paint();
+            }),
+            goalEvents.on(GOAL_EVENT_NAMES.ROUND_RESULT, (payload) => {
+                GameNoticePopup.showResult(this.app, payload as GoalRoundResult);
             }),
             goalEvents.on(GOAL_EVENT_NAMES.STANDBY, () => {
                 this.stopRoundClock();
@@ -145,12 +168,14 @@ export class GameScene implements Scene {
     private onOpenBetList = (): void => {
         if (this.awaitingPointer || !goalEngine.CanChangeBet()) return;
 
+        this.tap("sfx_btn");
         this.afterPointer(() => goalEngine.ToggleBetList());
     };
 
     private onResetBet = (): void => {
         if (this.awaitingPointer || !goalEngine.CanReset()) return;
 
+        this.tap("sfx_btn");
         this.afterPointer(() => goalEngine.ResetBet());
     };
 
@@ -170,19 +195,45 @@ export class GameScene implements Scene {
         if (goalEngine.IsPresentationLocked()) return;
 
         if (goalState.round.phase === "playing") {
-            this.sendTurn((ordinal) => gameRequests.CashoutColumn(ordinal));
+            this.sendTurn(
+                (ordinal) => gameRequests.CashoutColumn(ordinal),
+                "sfx_btn",
+                true,
+            );
             return;
         }
 
         if (!goalEngine.CanPlay()) return;
 
-        this.sendBare(() => gameRequests.PlayLevel(goalEngine.BetLevelKey()));
+        this.sendBare(() => gameRequests.PlayLevel(goalEngine.BetLevelKey()), "sfx_btn");
     }
+
+    private onSound = (): void => {
+        const muted = audioSystem.isOutputMuted();
+        if (muted) audioSystem.toggleOutputMute();
+        this.tap("sfx_btn");
+        if (!muted) audioSystem.toggleOutputMute();
+        this.paint();
+    };
+
+    private onInfo = (): void => {
+        this.tap("sfx_btn");
+        GameNoticePopup.show(this.app, "info");
+    };
+
+    private onHistory = (): void => {
+        if (goalState.round.phase === "playing") return;
+
+        this.tap("sfx_btn");
+        GameNoticePopup.show(this.app, "history");
+    };
 
     private onRandom = (): void => {
         if (this.awaitingPointer || !goalEngine.CanRandom()) return;
 
-        this.afterPointer(() => this.sendTurn((ordinal) => gameRequests.RandomColumn(ordinal)));
+        this.afterPointer(() =>
+            this.sendTurn((ordinal) => gameRequests.RandomColumn(ordinal), "sfx_click", true),
+        );
     };
 
     private onPick = (slot: number): void => {
@@ -190,11 +241,15 @@ export class GameScene implements Scene {
         if (goalState.round.phase !== "playing") return;
 
         this.afterPointer(() =>
-            this.sendTurn((ordinal) => gameRequests.PickColumn(ordinal, slot)),
+            this.sendTurn((ordinal) => gameRequests.PickColumn(ordinal, slot), "sfx_click", true),
         );
     };
 
-    private sendTurn(send: (ordinal: number) => boolean): void {
+    private sendTurn(
+        send: (ordinal: number) => boolean,
+        sound: SoundName,
+        outcome = false,
+    ): void {
         const ordinal = goalState.answerOrdinal;
         if (ordinal === null) {
             goalSession.note(i18n.t("goal.notConnected"));
@@ -202,16 +257,24 @@ export class GameScene implements Scene {
             return;
         }
 
-        this.sendBare(() => send(ordinal));
+        this.sendBare(() => send(ordinal), sound, outcome);
     }
 
-    private sendBare(send: () => boolean): void {
+    private sendBare(send: () => boolean, sound: SoundName, outcome = false): void {
         goalEngine.SetPresentationLocked(true);
-        if (send()) return;
+        if (send()) {
+            this.tap(sound);
+            if (outcome) audioSystem.armOutcome();
+            return;
+        }
 
         goalEngine.SetPresentationLocked(false);
         goalSession.note(i18n.t("goal.notConnected"));
         this.paint();
+    }
+
+    private tap(name: SoundName): void {
+        void audioSystem.play(name, { singleInstance: true });
     }
 
     private afterPointer(action: () => void): void {
@@ -245,7 +308,15 @@ export class GameScene implements Scene {
         return `${(x100 / 100).toFixed(2)}x`;
     }
 
-    private notice(): string | null {
+    private presentNotice(): void {
+        const message = this.noticeMessage();
+        if (!message) return;
+
+        goalState.notice = null;
+        GameNoticePopup.show(this.app, message);
+    }
+
+    private noticeMessage(): string | null {
         if (goalState.notice) return goalState.notice;
 
         const error = goalState.error;

@@ -5,8 +5,14 @@ import { GameScene } from "@/scenes/GameScene";
 import { SceneManager } from "@/scenes/SceneManager";
 import { WebSocketConnect } from "@/modules/game/ws/game.ws";
 import { InitGameHandlers } from "@/modules/game/handlers/game.handlers";
+import {
+    EVENT_NAMES,
+    eventBus,
+    GOAL_EVENT_NAMES,
+    goalEvents,
+} from "@/modules/game/engine/game.events";
 import { i18n } from "@/shared/i18n/I18nManager";
-import { createSpinner } from "@/components/base/Spinner";
+import { LoadingView } from "@/components/LoadingView";
 
 const isMobile = window.matchMedia(
     "(hover: none) and (pointer: coarse)",
@@ -29,29 +35,48 @@ async function resolveAssetpackManifest() {
     return response.json();
 }
 
+function waitForTokenResult(url: string, token: string): Promise<void> {
+    return new Promise((resolve) => {
+        let settled = false;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            stopLoad();
+            stopError();
+            stopScreen();
+            stopGoalError();
+            resolve();
+        };
+        const stopLoad = eventBus.on(EVENT_NAMES.INITIAL_LOAD_RESPONSE, finish);
+        const stopError = eventBus.on(EVENT_NAMES.ERROR_OCCURRED, finish);
+        const stopScreen = goalEvents.on(GOAL_EVENT_NAMES.SCREEN, finish);
+        const stopGoalError = goalEvents.on(GOAL_EVENT_NAMES.ERROR, finish);
+        void WebSocketConnect(url, token).catch(finish);
+    });
+}
+
 void (async () => {
     const assetpackManifest = await resolveAssetpackManifest();
 
     // init app
     const app = await createApp(() => {});
 
-    // init spinner
-    const spinner = createSpinner({
-        canvas: app.canvas,
-        ticker: app.ticker,
-        x: app.screen.width / 2,
-        y: app.screen.height / 2,
-    });
-    app.stage.addChild(spinner);
-
-    // init params and i18n
     const urlParams = new URLSearchParams(window.location.search);
-
     const defaultLang = import.meta.env.VITE_DEFAULT_LANG || "en";
     const initialLanguage = (
         urlParams.get("lang") || defaultLang
     ).toLowerCase();
     i18n.init(initialLanguage);
+
+    const loading = new LoadingView(app.ticker);
+    const placeLoading = () => {
+        loading.resize(app.screen.width, app.screen.height);
+    };
+    app.stage.addChild(loading);
+    placeLoading();
+    app.renderer.on("resize", placeLoading);
+    loading.setProgress(0.15);
+    loading.setProgress(0.4);
 
     await Assets.init({
         manifest: assetpackManifest,
@@ -66,19 +91,19 @@ void (async () => {
         },
     });
 
-    spinner.destroy();
+    loading.setProgress(0.7);
 
     const audioUrls = await PreloadAssets();
-    const token = urlParams.get("token") || "";
+    const token = urlParams.get("token") || import.meta.env.VITE_WS_TOKEN || "";
+    const wsUrl = import.meta.env.VITE_WS_URL || "";
+    InitGameHandlers();
+    const tokenReady = waitForTokenResult(wsUrl, token);
     const gameScene = new GameScene(app, token, initialLanguage, audioUrls);
     new SceneManager(app, gameScene);
-
-    InitGameHandlers();
-
-    const wsUrl = import.meta.env.VITE_WS_URL || "";
-    try {
-        await WebSocketConnect(wsUrl, token);
-    } catch {
-        // Reconnect keeps running inside the socket module.
-    }
+    app.stage.addChild(loading);
+    await Promise.all([gameScene.ready, tokenReady]);
+    loading.setProgress(1);
+    await loading.completeProgress();
+    app.renderer.off("resize", placeLoading);
+    loading.destroy();
 })();

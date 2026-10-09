@@ -19,6 +19,9 @@ import buttonPlusActiveUrl from "../../raw-assets/board{m}{copy}/button-plus-act
 import buttonPlusHoverUrl from "../../raw-assets/board{m}{copy}/button-plus-hover.svg";
 import buttonPlusUrl from "../../raw-assets/board{m}{copy}/button-plus.svg";
 import buttonSoundActiveUrl from "../../raw-assets/board{m}{copy}/button-sound-active.svg";
+import buttonSoundOffActiveUrl from "../../raw-assets/board{m}{copy}/button-sound-off-active.svg";
+import buttonSoundOffHoverUrl from "../../raw-assets/board{m}{copy}/button-sound-off-hover.svg";
+import buttonSoundOffUrl from "../../raw-assets/board{m}{copy}/button-sound-off.svg";
 import buttonSoundHoverUrl from "../../raw-assets/board{m}{copy}/button-sound-hover.svg";
 import buttonSoundUrl from "../../raw-assets/board{m}{copy}/button-sound.svg";
 import buttonHistoryActiveUrl from "../../raw-assets/board{m}{copy}/button-history-active.svg";
@@ -47,6 +50,7 @@ export type GameBoardArt = {
     minus: ButtonSkin;
     plus: ButtonSkin;
     sound: ButtonSkin;
+    soundOff: ButtonSkin;
 };
 
 const ART_URLS = {
@@ -72,6 +76,9 @@ const ART_URLS = {
     [goalAssets.button_sound]: buttonSoundUrl,
     [goalAssets.button_sound_hover]: buttonSoundHoverUrl,
     [goalAssets.button_sound_active]: buttonSoundActiveUrl,
+    [goalAssets.button_sound_off]: buttonSoundOffUrl,
+    [goalAssets.button_sound_off_hover]: buttonSoundOffHoverUrl,
+    [goalAssets.button_sound_off_active]: buttonSoundOffActiveUrl,
     [goalAssets.button_history]: buttonHistoryUrl,
     [goalAssets.button_history_hover]: buttonHistoryHoverUrl,
     [goalAssets.button_history_active]: buttonHistoryActiveUrl,
@@ -135,6 +142,12 @@ export async function loadGameBoardArt(): Promise<GameBoardArt> {
             goalAssets.button_sound,
             goalAssets.button_sound_hover,
             goalAssets.button_sound_active,
+        ),
+        soundOff: skin(
+            texture,
+            goalAssets.button_sound_off,
+            goalAssets.button_sound_off_hover,
+            goalAssets.button_sound_off_active,
         ),
     };
 }

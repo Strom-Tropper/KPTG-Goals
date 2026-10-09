@@ -121,6 +121,7 @@ export const GOAL_EVENT_NAMES = {
     BET_LIST_CHANGED: "BET_LIST_CHANGED",
     SECONDS_CHANGED: "SECONDS_CHANGED",
     SCREEN: "SCREEN",
+    ROUND_RESULT: "ROUND_RESULT",
 };
 
 export const goalEvents = {

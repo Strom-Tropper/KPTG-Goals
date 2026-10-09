@@ -5,12 +5,12 @@
 export const RES_FIRST_LOAD = 100;
 export const RES_SPIN = 101;
 export const RES_MAIN_BALANCE_UPDATE = 102;
-export const RES_MINIGAME = 104;
-export const RES_JACKPOT_VALUES = 110;
+// export const RES_MINIGAME = 104;
+// export const RES_JACKPOT_VALUES = 110;
 export const RES_BALANCE_UPDATE = 196;
 export const RES_ERROR = 199;
-export const RES_JACKPOT_HISTORY = 451;
-export const RES_BET_HISTORY = 452;
+// export const RES_JACKPOT_HISTORY = 451;
+// export const RES_BET_HISTORY = 452;
 
 /* ===============================
    REQUEST CODES (FE -> BE)
@@ -20,22 +20,24 @@ export const REQ_SPIN = 202;
 export const REQ_MINIGAME_PICK = 203;
 export const REQ_RANDOM = 204;
 export const REQ_CASHOUT = 205;
-export const REQ_STATE = 206;
+// export const REQ_STATE = 206;
 export const RES_STATE = 206;
-export const REQ_JACKPOT_VALUES = 110;
-export const REQ_CHANGE_WALLET = 208;
-export const REQ_JACKPOT_HISTORY = 401;
-export const REQ_BET_HISTORY = 402;
-export const REQ_CONFIRM_SESSION = 210;
+// export const REQ_JACKPOT_VALUES = 110;
+// export const REQ_CHANGE_WALLET = 208;
+// export const REQ_JACKPOT_HISTORY = 401;
+// export const REQ_BET_HISTORY = 402;
+// export const REQ_CONFIRM_SESSION = 210;
 
 /* ===============================
    BETTING
 ================================ */
 
-export const FALLBACK_TOTAL_BET_LEVELS = [
-    10000, 20000, 50000, 100000, 200000, 500000, 1000000,
-] as const;
-export const FALLBACK_BET_LEVEL_DIVISOR = 10;
+/* Mức bet của bàn là GOAL_BET_LEVELS phía dưới. Slot còn đọc danh sách đó khi gói 100 không có betting. */
+
+// export const FALLBACK_TOTAL_BET_LEVELS = [
+//     10000, 20000, 50000, 100000, 200000, 500000, 1000000,
+// ] as const;
+// export const FALLBACK_BET_LEVEL_DIVISOR = 10;
 
 /* ===============================
    ERROR CODES

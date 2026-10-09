@@ -127,6 +127,56 @@ export function valueReadout(
     return root;
 }
 
+const BALANCE_GREEN = 0x86a46c;
+const BALANCE_GRAY = 0xd4d4d4;
+const BALANCE_INK = 0x111111;
+
+export function balanceReadout(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    title: string,
+    amount: string | null,
+): Container {
+    const root = new Container();
+    root.position.set(x, y);
+    const shell = new Graphics();
+    shell.roundRect(0, 0, width, height, Math.max(10, Math.round(height * 0.34))).fill({
+        color: BALANCE_GREEN,
+    });
+    root.addChild(shell);
+
+    const pad = Math.max(4, Math.round(height * 0.08));
+    const header = Math.round(height * 0.4);
+    const wellX = pad;
+    const wellY = header;
+    const wellW = Math.max(1, width - pad * 2);
+    const wellH = Math.max(1, height - header - pad);
+    const well = new Graphics();
+    well
+        .roundRect(wellX, wellY, wellW, wellH, Math.max(8, Math.round(wellH * 0.42)))
+        .fill({ color: BALANCE_GRAY });
+    root.addChild(well);
+
+    const titleSize = Math.max(11, Math.round(header * 0.55));
+    root.addChild(goalLabel(title, width / 2, header / 2, titleSize, BALANCE_INK));
+    if (!amount) return root;
+
+    const amountSize = Math.max(12, Math.round(wellH * 0.46));
+    const amountLabel = goalLabel(
+        amount,
+        wellX + wellW / 2,
+        wellY + wellH / 2,
+        amountSize,
+        BALANCE_INK,
+    );
+    const limit = wellW * 0.88;
+    if (amountLabel.width > limit) amountLabel.scale.set(limit / amountLabel.width);
+    root.addChild(amountLabel);
+    return root;
+}
+
 export function betMenu(
     x: number,
     y: number,
@@ -235,6 +285,7 @@ export function circleButton(
     height: number,
     skin: ButtonSkin,
     enabled = true,
+    onPress?: () => void,
 ): Container {
     const root = new Container();
     const sprite = new Sprite(enabled ? skin.active : skin.normal);
@@ -247,6 +298,7 @@ export function circleButton(
     root.eventMode = enabled ? "static" : "none";
     root.cursor = enabled ? "pointer" : "default";
     watchButtonSkin(root, sprite, skin, enabled);
+    if (enabled && onPress) root.on("pointertap", onPress);
     return root;
 }
 

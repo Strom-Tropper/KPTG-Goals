@@ -372,6 +372,13 @@ export type GoalPlayResult =
     | { ok: false; round: GoalRound }
     | { ok: true; round: GoalPlaying; stake: number };
 
+export type GoalRoundResult = {
+    won: boolean;
+    bet: number;
+    amount: number;
+    balance: number;
+};
+
 export type GoalPickResult = {
     round: GoalRound;
     cashedOut: number;

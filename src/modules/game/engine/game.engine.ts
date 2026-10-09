@@ -12,8 +12,6 @@ import {
 } from "./game.errors";
 import { isDemoMode } from "../ws/game.ws";
 import {
-    FALLBACK_BET_LEVEL_DIVISOR,
-    FALLBACK_TOTAL_BET_LEVELS,
     GOAL_BET_LEVELS,
     GOAL_COLUMN_COUNT,
     GOAL_SLOT_COUNT,
@@ -178,10 +176,8 @@ type RawInitialLoadResponse = ResponseInitialLoadType & {
     wt?: string;
 };
 
-function getFallbackBetLevels(
-    divisor: number = FALLBACK_BET_LEVEL_DIVISOR,
-): number[] {
-    return FALLBACK_TOTAL_BET_LEVELS.map((totalBet) => totalBet / divisor);
+function getFallbackBetLevels(divisor: number = 10): number[] {
+    return GOAL_BET_LEVELS.map((totalBet) => totalBet / divisor);
 }
 
 function isBetLevel(value: number, betLevels: number[]): boolean {
@@ -191,7 +187,7 @@ function isBetLevel(value: number, betLevels: number[]): boolean {
 function normalizeBetLevelValue(
     value: number = 0,
     betLevels: number[] = getFallbackBetLevels(),
-    divisor: number = FALLBACK_BET_LEVEL_DIVISOR,
+    divisor: number = 10,
 ): number {
     if (isBetLevel(value, betLevels)) {
         return value;
@@ -211,10 +207,10 @@ function normalizeBetting(
     const divisor =
         betting?.bet_level_divisor && betting.bet_level_divisor > 0
             ? betting.bet_level_divisor
-            : FALLBACK_BET_LEVEL_DIVISOR;
+            : 10;
     const totalBetLevels = betting?.bet_levels?.length
         ? betting.bet_levels
-        : [...FALLBACK_TOTAL_BET_LEVELS];
+        : [...GOAL_BET_LEVELS];
     const betLevels = totalBetLevels.map((totalBet) => totalBet / divisor);
     const defaultBetLevel = normalizeBetLevelValue(
         betting?.default_bet_level,
@@ -323,7 +319,7 @@ function handleInitialLoadResponse(rawData: ResponseInitialLoadType) {
     gameState.status = data.status || 0;
     gameState.betting = {
         bet_level_divisor:
-            data.betting?.bet_level_divisor ?? FALLBACK_BET_LEVEL_DIVISOR,
+            data.betting?.bet_level_divisor ?? 10,
         bet_levels: data.betting?.bet_levels || [],
     };
     gameState.total_bet =
