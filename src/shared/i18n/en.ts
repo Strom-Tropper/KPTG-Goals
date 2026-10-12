@@ -98,6 +98,13 @@ export const en = {
             timer: "The clock follows the server. At zero the server resolves the turn.",
             multipliers: "Column multipliers: 1.29, 1.72, 2.29, 3.06, 4.08, 5.45, 7.26.",
         },
+        ending: {
+            trap: "Trap",
+            cashout: "Cashout",
+            cashout_inactive: "Cashout",
+            abandoned_at_start: "Refund",
+            max: "Cleared",
+        },
     },
     settings: {
         music: "MUSIC",

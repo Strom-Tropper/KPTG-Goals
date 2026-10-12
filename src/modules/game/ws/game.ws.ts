@@ -2,7 +2,7 @@
 
 import { EVENT_NAMES, eventBus } from "../engine/game.events";
 import { GAME_ERROR_CODES, getErrorMessage } from "../engine/game.errors";
-import { RES_ERROR } from "../engine/game.constants";
+import { RES_BET_HISTORY, RES_ERROR } from "../engine/game.constants";
 
 // =========================================================
 // TYPES
@@ -48,6 +48,26 @@ const getSystemErrorKey = (code: number) => {
     if (code === 401) return GAME_ERROR_CODES.INVALID_TOKEN;
 
     return GAME_ERROR_CODES.CONNECTION_FAILED;
+};
+
+const historyPayload = (
+    opcode: number,
+    parsed: { data?: unknown; [key: string]: unknown },
+) => {
+    const nested = normalizePayload(parsed.data ?? parsed);
+    if (opcode !== RES_BET_HISTORY || !parsed.data || typeof nested !== "object" || nested === null) {
+        return nested;
+    }
+
+    const body = nested as Record<string, unknown>;
+    return {
+        ...parsed,
+        ...body,
+        list: body.list ?? parsed.list,
+        page: body.page ?? parsed.page,
+        total: body.total ?? parsed.total,
+        limit: body.limit ?? parsed.limit,
+    };
 };
 
 const normalizePayload = (payload: unknown) => {
@@ -104,7 +124,7 @@ const handleIncomingMessage = (rawData: string) => {
         }
 
         if (listeners[opcode]) {
-            const payload = normalizePayload(parsed.data ?? parsed);
+            const payload = historyPayload(opcode, parsed);
             listeners[opcode].forEach((cb) => cb(payload));
         } else {
             console.warn(

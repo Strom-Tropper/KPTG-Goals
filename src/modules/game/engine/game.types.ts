@@ -384,6 +384,9 @@ export type GoalHistoryRow = {
     time: string;
     bet: number;
     win: number;
+    ending: string;
+    board: Array<number | null>;
+    turns: GoalWireTurn[];
 };
 
 export type GoalHistoryPage = {

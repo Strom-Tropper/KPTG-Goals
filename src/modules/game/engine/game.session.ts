@@ -71,8 +71,6 @@ function applyFrame(frame: GoalStatusFrame) {
         heldOrdinal !== null &&
         frame.ordinal <= heldOrdinal
     ) {
-        unlock();
-        emitScreen();
         return;
     }
 
@@ -318,6 +316,7 @@ function facesFor(
     done: boolean,
     cleared: number,
     ending?: string,
+    sourceTurns: GoalWireTurn[] = heldTurns,
 ): GoalCellFace[][] {
     const faces = blankFaces();
     const safeColumns = new Set(picks.map((pick) => pick.column));
@@ -351,7 +350,7 @@ function facesFor(
     });
 
     if (pinkFrom !== null) {
-        const trapTurn = heldTurns.find(
+        const trapTurn = sourceTurns.find(
             (turn) => turn.trap && turn.column === pinkFrom + 1 && turn.slot !== undefined,
         );
         const face = trapTurn?.slot === undefined
@@ -364,6 +363,37 @@ function facesFor(
     }
 
     return faces;
+}
+
+export function goalHistoryFaces(
+    board: Array<number | null>,
+    turns: GoalWireTurn[],
+    ending: string,
+): GoalCellFace[][] {
+    const padded = Array.from({ length: GOAL_COLUMN_COUNT }, (_, column) => {
+        const mask = board[column];
+        return typeof mask === "number" ? mask : null;
+    });
+    const picks = turns.flatMap((turn) => {
+        if (turn.slot === undefined || turn.trap || turn.column === undefined) return [];
+        return [{ column: turn.column - 1, slot: turn.slot }];
+    });
+    const trapTurn = turns.find(
+        (turn) => turn.trap && turn.column !== undefined && turn.slot !== undefined,
+    );
+    const done = ending.length > 0;
+    const pinkFrom =
+        done && trapTurn?.column !== undefined ? trapTurn.column - 1 : null;
+    return facesFor(
+        padded,
+        picks,
+        null,
+        pinkFrom,
+        done,
+        picks.length,
+        ending || undefined,
+        turns,
+    );
 }
 
 function pinkColumn(turn: GoalWireTurn | undefined, ending?: string) {
@@ -403,7 +433,14 @@ function applyHistory(payload: unknown): void {
 
 function readGoalHistory(payload: unknown): GoalHistoryPage {
     const body = record(payload);
-    const list = Array.isArray(body.list) ? body.list : [];
+    const nested = record(body.data);
+    const list = Array.isArray(body.list)
+        ? body.list
+        : Array.isArray(nested.list)
+          ? nested.list
+          : Array.isArray(body.data)
+            ? body.data
+            : [];
     return {
         rows: list.map((item) => {
             const row = record(item);
@@ -412,12 +449,42 @@ function readGoalHistory(payload: unknown): GoalHistoryPage {
                 time: historyClock(row.created_at),
                 bet: amount(row.bet),
                 win: amount(row.win),
+                ending: text(row.ending),
+                board: historyBoard(row.board),
+                turns: historyTurns(row.turns),
             };
         }),
-        total: amount(body.total),
-        page: amount(body.page),
-        limit: amount(body.limit) || 10,
+        total: amount(body.total ?? nested.total),
+        page: amount(body.page ?? nested.page),
+        limit: amount(body.limit ?? nested.limit) || 10,
     };
+}
+
+function historyBoard(value: unknown): Array<number | null> {
+    if (!Array.isArray(value)) return [];
+    return value.map((mask) => (typeof mask === "number" ? mask : null));
+}
+
+function historyTurns(value: unknown): GoalWireTurn[] {
+    if (!Array.isArray(value)) return [];
+    return value.map((item) => {
+        const turn = record(item);
+        return {
+            ordinal: finite(turn.ordinal),
+            column: finite(turn.column),
+            by: text(turn.by) || undefined,
+            action: text(turn.action) || undefined,
+            slot: finite(turn.slot),
+            trap: turn.trap === true,
+            presence: text(turn.presence) || undefined,
+        };
+    });
+}
+
+function finite(value: unknown): number | undefined {
+    if (value === null || value === undefined || value === "") return undefined;
+    const number = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+    return Number.isFinite(number) ? number : undefined;
 }
 
 function record(value: unknown): Record<string, unknown> {

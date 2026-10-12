@@ -4,6 +4,7 @@ import { GameBoard } from "@/scenes/GameBoard";
 import { loadGameBoardArt } from "@/scenes/GameBoardArt";
 import { GameNoticePopup } from "@/components/GameNoticePopup";
 import { NotificationPopup } from "@/components/NotificationPopup";
+import { createHistoryPopup, type HistoryPopupView } from "@/components/HIstoryPopup/HistoryPopup";
 import { SettingPopup, type SettingsHooks } from "@/components/SettingPopup";
 import { createInfoPopup, type InfoView } from "@/components/InfoPopup/InfoPopup";
 import { GOAL_ERROR_CODES, goalMultiplierText } from "@/modules/game/engine/game.constants";
@@ -21,6 +22,7 @@ import { format } from "@/shared/utils/formatNumber";
 export class GameScene implements Scene {
     private readonly app: Application<Renderer>;
     private readonly board: GameBoard;
+    private readonly historyView: HistoryPopupView;
     private readonly infoView: InfoView;
     private awaitingPointer = false;
     private turnTimer: ReturnType<typeof setInterval> | null = null;
@@ -51,9 +53,11 @@ export class GameScene implements Scene {
             onInfo: this.onInfo,
             onSettings: this.onSettings,
         });
+        this.historyView = createHistoryPopup(this.app);
         this.infoView = createInfoPopup(this.app);
         NotificationPopup.attach(this.app);
         this.app.stage.addChild(this.board);
+        this.app.stage.addChild(this.historyView);
         this.app.stage.addChild(this.infoView);
         this.listen();
         void this.mount();
@@ -86,6 +90,7 @@ export class GameScene implements Scene {
         GameNoticePopup.close();
         NotificationPopup.close();
         SettingPopup.close();
+        this.historyView.destroy({ children: true });
         this.infoView.destroy();
         this.app.renderer.off("resize", this.paint);
         this.board.destroy({ children: true });
@@ -222,7 +227,7 @@ export class GameScene implements Scene {
 
     private onSettings = (): void => {
         this.tap("sfx_btn");
-        SettingPopup.show(this.app, this.settingsHooks());
+        SettingPopup.show(this.app, this.settingsHooks(), this.historyView);
     };
 
     private settingsHooks(): SettingsHooks {

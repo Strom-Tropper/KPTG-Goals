@@ -88,6 +88,13 @@ export const th = {
             timer: "นาฬิกาตามเซิร์ฟเวอร์ เมื่อถึงศูนย์ เซิร์ฟเวอร์ตัดสินตานั้น",
             multipliers: "ตัวคูณคอลัมน์: 1.29, 1.72, 2.29, 3.06, 4.08, 5.45, 7.26",
         },
+        ending: {
+            trap: "กับดัก",
+            cashout: "รับเงิน",
+            cashout_inactive: "รับเงิน",
+            abandoned_at_start: "คืนเงิน",
+            max: "ผ่านหมด",
+        },
     },
     settings: {
         music: "MUSIC",

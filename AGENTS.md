@@ -39,7 +39,9 @@ PixiJS v8, game Goal `g-59`. Luật ván, opcode và gói dây nằm ở `storm/
 
 `GameScene` nghe `goalEvents` rồi gọi `GameBoard.show`. `goalSession` ghi `goalState` và bắn sự kiện. Pointer không tự sửa `goalState`.
 
-Slot sót vẫn biên dịch trong các file `game.*`, `eventBus`, handler, và một số popup. Boot không vẽ màn slot. Popup Goal đang gắn scene: `GameNoticePopup`, `NotificationPopup`, `SettingPopup`, `InfoPopup`. Đừng mở lại popup slot (`PopupWin`, freespin, jackpot, `bonus-game`) trừ khi task nói.
+Khung màn hình lấy từ `Archive` cạnh repo này (`components/main-game/`). Repo Goal đã đưa các file đó lên `src/components/`. Giữ đúng vai trò đó khi thêm màn: `NotificationPopup`, `SettingPopup` chỉ mở lịch sử, `HIstoryPopup/` vẽ danh sách và chi tiết, `InfoPopup/` là các trang info, `PopupWin/`, `bonus-game/`, freespin, jackpot. Đổi asset và luật chơi. Không thêm class popup mới cho một việc đã có file. File đang comment giữ nguyên. Khi một màn vào game thì mở file đó, sửa import cho khớp cây hiện tại (`@/components/layouts`, `@/components/InfoPopup`), rồi mới gắn `GameScene`. Không bỏ comment cả cụm một lúc.
+
+Bàn Goal nằm ở `src/scenes/` (`GameBoard`, `GameCells`, `GameBoardArt`). Đó là phần Archive không có. Luật ván vẫn ở `goalEngine`, không chép luật slot trong các file comment.
 
 ## Kiểu code
 

@@ -54,8 +54,8 @@ export const gameRequests = {
     //     return socketClient.send(REQ_JACKPOT_HISTORY, null, { page, limit });
     // },
 
-    RequestBetHistory(page = 0, limit = 10) {
-        return socketClient.send(REQ_BET_HISTORY, null, { page, limit });
+    RequestBetHistory(page = 1, limit = 10) {
+        return socketClient.send(REQ_BET_HISTORY, { page, limit }, { page, limit });
     },
 
     // ChangeWallet(walletProvider: string) {
