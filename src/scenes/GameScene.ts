@@ -5,12 +5,26 @@ import { loadGameBoardArt } from "@/scenes/GameBoardArt";
 import { BonusGameLosePopup } from "@/components/bonus-game/BonusGameLosePopup";
 import { BonusGameWinPopup } from "@/components/bonus-game/BonusGameWinPopup";
 import { NotificationPopup } from "@/components/NotificationPopup";
-import { createHistoryPopup, type HistoryPopupView } from "@/components/HIstoryPopup/HistoryPopup";
+import {
+  createHistoryPopup,
+  type HistoryPopupView,
+} from "@/components/HIstoryPopup/HistoryPopup";
 import { SettingPopup, type SettingsHooks } from "@/components/SettingPopup";
-import { createInfoPopup, type InfoView } from "@/components/InfoPopup/InfoPopup";
-import { GOAL_ERROR_CODES, goalMultiplierText } from "@/modules/game/engine/game.constants";
+import {
+  createInfoPopup,
+  type InfoView,
+} from "@/components/InfoPopup/InfoPopup";
+import {
+  GOAL_ERROR_CODES,
+  goalMultiplierText,
+} from "@/modules/game/engine/game.constants";
 import { goalEngine } from "@/modules/game/engine/game.engine";
-import { EVENT_NAMES, eventBus, GOAL_EVENT_NAMES, goalEvents } from "@/modules/game/engine/game.events";
+import {
+  EVENT_NAMES,
+  eventBus,
+  GOAL_EVENT_NAMES,
+  goalEvents,
+} from "@/modules/game/engine/game.events";
 import { goalSession } from "@/modules/game/engine/game.session";
 import { gameState, goalState } from "@/modules/game/engine/game.state";
 import type { GoalRoundResult } from "@/modules/game/engine/game.types";
@@ -21,346 +35,361 @@ import { i18n } from "@/shared/i18n/I18nManager";
 import { format } from "@/shared/utils/formatNumber";
 
 export class GameScene implements Scene {
-    private readonly app: Application<Renderer>;
-    private readonly board: GameBoard;
-    private readonly historyView: HistoryPopupView;
-    private readonly infoView: InfoView;
-    private readonly winPopup: BonusGameWinPopup;
-    private readonly losePopup: BonusGameLosePopup;
-    private awaitingPointer = false;
-    private turnTimer: ReturnType<typeof setInterval> | null = null;
-    private turnId = 0;
-    private readonly unlisten: Array<() => void> = [];
-    private destroyed = false;
-    private resolveReady = (): void => {};
-    readonly ready: Promise<void>;
+  private readonly app: Application<Renderer>;
+  private readonly board: GameBoard;
+  private readonly historyView: HistoryPopupView;
+  private readonly infoView: InfoView;
+  private readonly winPopup: BonusGameWinPopup;
+  private readonly losePopup: BonusGameLosePopup;
+  private awaitingPointer = false;
+  private turnTimer: ReturnType<typeof setInterval> | null = null;
+  private turnId = 0;
+  private readonly unlisten: Array<() => void> = [];
+  private destroyed = false;
+  private resolveReady = (): void => {};
+  readonly ready: Promise<void>;
 
-    constructor(
-        app: Application<Renderer>,
-        _token: string,
-        _initialLanguage: string,
-        _audioUrls: ReadonlyMap<string, string>,
-    ) {
-        this.ready = new Promise((resolve) => {
-            this.resolveReady = resolve;
-        });
-        this.app = app;
-        this.board = new GameBoard({
-            onBet: this.onBet,
-            onOpenBetList: this.onOpenBetList,
-            onChooseBet: this.onChooseBet,
-            onResetBet: this.onResetBet,
-            onMain: this.onMain,
-            onPick: this.onPick,
-            onRandom: this.onRandom,
-            onInfo: this.onInfo,
-            onSettings: this.onSettings,
-        });
-        this.historyView = createHistoryPopup(this.app);
-        this.infoView = createInfoPopup(this.app);
-        this.winPopup = new BonusGameWinPopup(this.app);
-        this.losePopup = new BonusGameLosePopup(this.app);
-        NotificationPopup.attach(this.app);
-        this.app.stage.addChild(this.board);
-        this.app.stage.addChild(this.historyView);
-        this.app.stage.addChild(this.infoView);
-        this.app.stage.addChild(this.losePopup);
-        this.app.stage.addChild(this.winPopup);
-        this.listen();
-        void this.mount();
+  constructor(
+    app: Application<Renderer>,
+    _token: string,
+    _initialLanguage: string,
+    _audioUrls: ReadonlyMap<string, string>,
+  ) {
+    this.ready = new Promise((resolve) => {
+      this.resolveReady = resolve;
+    });
+    this.app = app;
+    this.board = new GameBoard({
+      onBet: this.onBet,
+      onOpenBetList: this.onOpenBetList,
+      onChooseBet: this.onChooseBet,
+      onResetBet: this.onResetBet,
+      onMain: this.onMain,
+      onPick: this.onPick,
+      onRandom: this.onRandom,
+      onInfo: this.onInfo,
+      onSettings: this.onSettings,
+    });
+    this.historyView = createHistoryPopup(this.app);
+    this.infoView = createInfoPopup(this.app);
+    this.winPopup = new BonusGameWinPopup(this.app);
+    this.losePopup = new BonusGameLosePopup(this.app);
+    NotificationPopup.attach(this.app);
+    this.app.stage.addChild(this.board);
+    this.app.stage.addChild(this.historyView);
+    this.app.stage.addChild(this.infoView);
+    this.app.stage.addChild(this.losePopup);
+    this.app.stage.addChild(this.winPopup);
+    this.listen();
+    void this.mount();
+  }
+
+  private mount = async (): Promise<void> => {
+    try {
+      const art = await loadGameBoardArt();
+      if (this.destroyed) return;
+
+      this.board.setArt(art);
+      this.paint();
+      this.app.renderer.on("resize", this.paint);
+    } finally {
+      this.resolveReady();
     }
+  };
 
-    private mount = async (): Promise<void> => {
-        try {
-            const art = await loadGameBoardArt();
-            if (this.destroyed) return;
+  pause(): void {}
 
-            this.board.setArt(art);
-            this.paint();
-            this.app.renderer.on("resize", this.paint);
-        } finally {
-            this.resolveReady();
-        }
-    };
+  resume(): void {}
 
-    pause(): void {}
+  destroy(): void {
+    if (this.destroyed) return;
 
-    resume(): void {}
+    this.destroyed = true;
+    for (const stop of this.unlisten) stop();
+    this.unlisten.length = 0;
+    this.clearTurnTimer();
+    this.winPopup.destroy({ children: true });
+    this.losePopup.destroy({ children: true });
+    NotificationPopup.close();
+    SettingPopup.close();
+    this.historyView.destroy({ children: true });
+    this.infoView.destroy();
+    this.app.renderer.off("resize", this.paint);
+    this.board.destroy({ children: true });
+  }
 
-    destroy(): void {
-        if (this.destroyed) return;
+  private paint = (): void => {
+    const round = goalState.round;
+    const playing = round.phase === "playing";
+    const shownColumn =
+      round.phase === "standby" ? (round.column ?? null) : round.column;
+    const multipliers =
+      shownColumn === null
+        ? []
+        : Array.from({ length: shownColumn + 1 }, (_, column) => ({
+            column,
+            text: this.multiplierLabel(column),
+            passed: !playing || column < shownColumn,
+          }));
 
-        this.destroyed = true;
-        for (const stop of this.unlisten) stop();
-        this.unlisten.length = 0;
-        this.clearTurnTimer();
-        this.winPopup.destroy({ children: true });
-        this.losePopup.destroy({ children: true });
-        NotificationPopup.close();
-        SettingPopup.close();
-        this.historyView.destroy({ children: true });
-        this.infoView.destroy();
-        this.app.renderer.off("resize", this.paint);
-        this.board.destroy({ children: true });
-    }
+    this.board.show({
+      width: this.app.screen.width,
+      height: this.app.screen.height,
+      cells: goalState.cells,
+      multipliers,
+      secondsLeft: goalState.secondsLeft,
+      balanceText: i18n.t("goal.balance"),
+      balanceDetail: format(gameState.balance),
+      randomText: i18n.t("goal.random"),
+      randomEnabled: goalEngine.CanRandom(),
+      mainLabel: playing ? i18n.t("goal.cashout") : i18n.t("goal.play"),
+      mainDetail:
+        playing && round.cashoutAmount > 0 ? format(round.cashoutAmount) : null,
+      mainEnabled: playing ? goalEngine.CanCashout() : goalEngine.CanPlay(),
+      betLines: [
+        i18n.t("goal.betLevel", { level: goalEngine.BetLevelNumber() }),
+        format(round.betLevel),
+      ],
+      betSelectable: goalEngine.CanChangeBet(),
+      betListOpen: goalState.betListOpen,
+      betChoices: goalState.ladder.map((row, index) => ({
+        text: `${i18n.t("goal.betLevel", { level: index + 1 })} : ${format(row.bet)}`,
+        selected: index === goalEngine.BetLevelNumber() - 1,
+      })),
+      minusEnabled: goalEngine.CanDecreaseBet(),
+      plusEnabled: goalEngine.CanIncreaseBet(),
+      resetText: i18n.t("goal.resetBet"),
+      resetEnabled: goalEngine.CanReset(),
+    });
+  };
 
-    private paint = (): void => {
-        const round = goalState.round;
-        const playing = round.phase === "playing";
-        const shownColumn = round.phase === "standby" ? round.column ?? null : round.column;
-        const multipliers =
-            shownColumn === null
-                ? []
-                : Array.from({ length: shownColumn + 1 }, (_, column) => ({
-                      column,
-                      text: this.multiplierLabel(column),
-                      passed: !playing || column < shownColumn,
-                  }));
-
-        this.board.show({
-            width: this.app.screen.width,
-            height: this.app.screen.height,
-            cells: goalState.cells,
-            multipliers,
-            secondsLeft: goalState.secondsLeft,
-            balanceText: i18n.t("goal.balance"),
-            balanceDetail: format(gameState.balance),
-            randomText: i18n.t("goal.random"),
-            randomEnabled: goalEngine.CanRandom(),
-            mainLabel: playing
-                ? i18n.t("goal.cashout")
-                : i18n.t("goal.play"),
-            mainDetail:
-                playing && round.cashoutAmount > 0
-                    ? format(round.cashoutAmount)
-                    : null,
-            mainEnabled: playing ? goalEngine.CanCashout() : goalEngine.CanPlay(),
-            betLines: [
-                i18n.t("goal.betLevel", { level: goalEngine.BetLevelNumber() }),
-                format(round.betLevel),
-            ],
-            betSelectable: goalEngine.CanChangeBet(),
-            betListOpen: goalState.betListOpen,
-            betChoices: goalState.ladder.map((row, index) => ({
-                text: `${i18n.t("goal.betLevel", { level: index + 1 })} : ${format(row.bet)}`,
-                selected: index === goalEngine.BetLevelNumber() - 1,
-            })),
-            minusEnabled: goalEngine.CanDecreaseBet(),
-            plusEnabled: goalEngine.CanIncreaseBet(),
-            resetText: i18n.t("goal.resetBet"),
-            resetEnabled: goalEngine.CanReset(),
-        });
-    };
-
-    private listen(): void {
-        this.unlisten.push(
-            goalEvents.on(GOAL_EVENT_NAMES.BET_LEVEL_CHANGED, () => this.paint()),
-            goalEvents.on(GOAL_EVENT_NAMES.ERROR, () => {
-                this.presentNotice();
-                this.paint();
-            }),
-            goalEvents.on(GOAL_EVENT_NAMES.PRESENTATION_LOCK_CHANGED, () => this.paint()),
-            goalEvents.on(GOAL_EVENT_NAMES.BET_LIST_CHANGED, () => this.paint()),
-            goalEvents.on(GOAL_EVENT_NAMES.SECONDS_CHANGED, () => {
-                this.board.setSeconds(goalState.secondsLeft);
-            }),
-            goalEvents.on(GOAL_EVENT_NAMES.SCREEN, () => {
-                this.followDeadline();
-                this.paint();
-            }),
-            goalEvents.on(GOAL_EVENT_NAMES.ROUND_RESULT, (payload) => {
-                const result = payload as GoalRoundResult;
-                if (result.won) this.winPopup.showWin(result.amount);
-                else this.losePopup.showLoss(result.amount);
-            }),
-            goalEvents.on(GOAL_EVENT_NAMES.STANDBY, () => {
-                this.stopRoundClock();
-                this.paint();
-            }),
-            eventBus.on(EVENT_NAMES.BALANCE_UPDATE_RESPONSE, () => this.paint()),
-        );
-    }
-
-    private onBet = (direction: -1 | 1): void => {
-        if (this.awaitingPointer || !goalEngine.CanChangeBet()) return;
-
-        goalEngine.ChangeBetLevel(direction);
-    };
-
-    private onOpenBetList = (): void => {
-        if (this.awaitingPointer || !goalEngine.CanChangeBet()) return;
-
-        this.tap("sfx_btn");
-        this.afterPointer(() => goalEngine.ToggleBetList());
-    };
-
-    private onResetBet = (): void => {
-        if (this.awaitingPointer || !goalEngine.CanReset()) return;
-
-        this.tap("sfx_btn");
-        this.afterPointer(() => goalEngine.ResetBet());
-    };
-
-    private onChooseBet = (index: number): void => {
-        if (this.awaitingPointer || !goalEngine.CanChangeBet()) return;
-
-        this.afterPointer(() => goalEngine.SetBetLevel(index));
-    };
-
-    private onMain = (): void => {
-        if (this.awaitingPointer || goalEngine.IsPresentationLocked()) return;
-
-        this.afterPointer(() => this.pressMain());
-    };
-
-    private pressMain(): void {
-        if (goalEngine.IsPresentationLocked()) return;
-
-        if (goalState.round.phase === "playing") {
-            this.sendTurn(
-                (ordinal) => gameRequests.CashoutColumn(ordinal),
-                "sfx_btn",
-                true,
-            );
-            return;
-        }
-
-        if (!goalEngine.CanPlay()) return;
-
-        this.sendBare(() => gameRequests.PlayLevel(goalEngine.BetLevelKey()), "sfx_btn");
-    }
-
-    private onInfo = (): void => {
-        this.tap("sfx_btn");
-        this.infoView.show();
-    };
-
-    private onSettings = (): void => {
-        this.tap("sfx_btn");
-        SettingPopup.show(this.app, this.settingsHooks(), this.historyView);
-    };
-
-    private settingsHooks(): SettingsHooks {
-        return {
-            historyEnabled: () => goalState.round.phase !== "playing",
-        };
-    };
-
-    private onRandom = (): void => {
-        if (this.awaitingPointer || !goalEngine.CanRandom()) return;
-
-        this.afterPointer(() =>
-            this.sendTurn((ordinal) => gameRequests.RandomColumn(ordinal), "sfx_click", true),
-        );
-    };
-
-    private onPick = (slot: number): void => {
-        if (this.awaitingPointer || goalEngine.IsPresentationLocked()) return;
-        if (goalState.round.phase !== "playing") return;
-
-        this.afterPointer(() =>
-            this.sendTurn((ordinal) => gameRequests.PickColumn(ordinal, slot), "sfx_click", true),
-        );
-    };
-
-    private sendTurn(
-        send: (ordinal: number) => boolean,
-        sound: SoundName,
-        outcome = false,
-    ): void {
-        const ordinal = goalState.answerOrdinal;
-        if (ordinal === null) {
-            goalSession.note(i18n.t("goal.notConnected"));
-            this.paint();
-            return;
-        }
-
-        this.sendBare(() => send(ordinal), sound, outcome);
-    }
-
-    private sendBare(send: () => boolean, sound: SoundName, outcome = false): void {
-        goalEngine.SetPresentationLocked(true);
-        if (send()) {
-            this.tap(sound);
-            if (outcome) audioSystem.armOutcome();
-            return;
-        }
-
-        goalEngine.SetPresentationLocked(false);
-        goalSession.note(i18n.t("goal.notConnected"));
+  private listen(): void {
+    this.unlisten.push(
+      goalEvents.on(GOAL_EVENT_NAMES.BET_LEVEL_CHANGED, () => this.paint()),
+      goalEvents.on(GOAL_EVENT_NAMES.ERROR, () => {
+        this.presentNotice();
         this.paint();
+      }),
+      goalEvents.on(GOAL_EVENT_NAMES.PRESENTATION_LOCK_CHANGED, () =>
+        this.paint(),
+      ),
+      goalEvents.on(GOAL_EVENT_NAMES.BET_LIST_CHANGED, () => this.paint()),
+      goalEvents.on(GOAL_EVENT_NAMES.SECONDS_CHANGED, () => {
+        this.board.setSeconds(goalState.secondsLeft);
+      }),
+      goalEvents.on(GOAL_EVENT_NAMES.SCREEN, () => {
+        this.followDeadline();
+        this.paint();
+      }),
+      goalEvents.on(GOAL_EVENT_NAMES.ROUND_RESULT, (payload) => {
+        const result = payload as GoalRoundResult;
+        if (result.won) this.winPopup.showWin(result.amount);
+        else this.losePopup.showLoss(result.amount);
+      }),
+      goalEvents.on(GOAL_EVENT_NAMES.STANDBY, () => {
+        this.stopRoundClock();
+        this.paint();
+      }),
+      eventBus.on(EVENT_NAMES.BALANCE_UPDATE_RESPONSE, () => this.paint()),
+    );
+  }
+
+  private onBet = (direction: -1 | 1): void => {
+    if (this.awaitingPointer || !goalEngine.CanChangeBet()) return;
+
+    goalEngine.ChangeBetLevel(direction);
+  };
+
+  private onOpenBetList = (): void => {
+    if (this.awaitingPointer || !goalEngine.CanChangeBet()) return;
+
+    this.tap("sfx_btn");
+    this.afterPointer(() => goalEngine.ToggleBetList());
+  };
+
+  private onResetBet = (): void => {
+    if (this.awaitingPointer || !goalEngine.CanReset()) return;
+
+    this.tap("sfx_btn");
+    this.afterPointer(() => goalEngine.ResetBet());
+  };
+
+  private onChooseBet = (index: number): void => {
+    if (this.awaitingPointer || !goalEngine.CanChangeBet()) return;
+
+    this.afterPointer(() => goalEngine.SetBetLevel(index));
+  };
+
+  private onMain = (): void => {
+    if (this.awaitingPointer || goalEngine.IsPresentationLocked()) return;
+
+    this.afterPointer(() => this.pressMain());
+  };
+
+  private pressMain(): void {
+    if (goalEngine.IsPresentationLocked()) return;
+
+    if (goalState.round.phase === "playing") {
+      this.sendTurn(
+        (ordinal) => gameRequests.CashoutColumn(ordinal),
+        "sfx_btn",
+        true,
+      );
+      return;
     }
 
-    private tap(name: SoundName): void {
-        void audioSystem.play(name, { singleInstance: true });
+    if (!goalEngine.CanPlay()) return;
+
+    this.sendBare(
+      () => gameRequests.PlayLevel(goalEngine.BetLevelKey()),
+      "sfx_btn",
+    );
+  }
+
+  private onInfo = (): void => {
+    this.tap("sfx_btn");
+    this.infoView.show();
+  };
+
+  private onSettings = (): void => {
+    this.tap("sfx_btn");
+    SettingPopup.show(this.app, this.settingsHooks(), this.historyView);
+  };
+
+  private settingsHooks(): SettingsHooks {
+    return {
+      historyEnabled: () => goalState.round.phase !== "playing",
+    };
+  }
+
+  private onRandom = (): void => {
+    if (this.awaitingPointer || !goalEngine.CanRandom()) return;
+
+    this.afterPointer(() =>
+      this.sendTurn(
+        (ordinal) => gameRequests.RandomColumn(ordinal),
+        "sfx_click",
+        true,
+      ),
+    );
+  };
+
+  private onPick = (slot: number): void => {
+    if (this.awaitingPointer || goalEngine.IsPresentationLocked()) return;
+    if (goalState.round.phase !== "playing") return;
+
+    this.afterPointer(() =>
+      this.sendTurn(
+        (ordinal) => gameRequests.PickColumn(ordinal, slot),
+        "sfx_click",
+        true,
+      ),
+    );
+  };
+
+  private sendTurn(
+    send: (ordinal: number) => boolean,
+    sound: SoundName,
+    outcome = false,
+  ): void {
+    const ordinal = goalState.answerOrdinal;
+    if (ordinal === null) {
+      goalSession.note(i18n.t("goal.notConnected"));
+      this.paint();
+      return;
     }
 
-    private afterPointer(action: () => void): void {
-        this.awaitingPointer = true;
-        requestAnimationFrame(() => {
-            if (this.destroyed) return;
+    this.sendBare(() => send(ordinal), sound, outcome);
+  }
 
-            this.awaitingPointer = false;
-            action();
-        });
+  private sendBare(
+    send: () => boolean,
+    sound: SoundName,
+    outcome = false,
+  ): void {
+    goalEngine.SetPresentationLocked(true);
+    if (send()) {
+      this.tap(sound);
+      if (outcome) audioSystem.armOutcome();
+      return;
     }
 
-    private followDeadline(): void {
-        this.clearTurnTimer();
-        const deadline = goalState.deadlineMs;
-        if (deadline === null || goalState.round.phase !== "playing") return;
+    goalEngine.SetPresentationLocked(false);
+    goalSession.note(i18n.t("goal.notConnected"));
+    this.paint();
+  }
 
-        const turnId = this.turnId;
-        this.turnTimer = setInterval(() => {
-            if (turnId !== this.turnId || this.destroyed) return;
+  private tap(name: SoundName): void {
+    void audioSystem.play(name, { singleInstance: true });
+  }
 
-            const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-            if (seconds !== goalEngine.SecondsLeft()) goalEngine.SetSecondsLeft(seconds);
-        }, 200);
+  private afterPointer(action: () => void): void {
+    this.awaitingPointer = true;
+    requestAnimationFrame(() => {
+      if (this.destroyed) return;
+
+      this.awaitingPointer = false;
+      action();
+    });
+  }
+
+  private followDeadline(): void {
+    this.clearTurnTimer();
+    const deadline = goalState.deadlineMs;
+    if (deadline === null || goalState.round.phase !== "playing") return;
+
+    const turnId = this.turnId;
+    this.turnTimer = setInterval(() => {
+      if (turnId !== this.turnId || this.destroyed) return;
+
+      const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      if (seconds !== goalEngine.SecondsLeft())
+        goalEngine.SetSecondsLeft(seconds);
+    }, 200);
+  }
+
+  private multiplierLabel(column: number): string {
+    const x100 = goalState.multipliersX100[column];
+    if (x100 === undefined) return goalMultiplierText(column);
+
+    return `${(x100 / 100).toFixed(2)}x`;
+  }
+
+  private presentNotice(): void {
+    const message = this.noticeMessage();
+    if (!message) return;
+
+    const code = goalState.noticeCode ?? goalState.error ?? "";
+    goalState.notice = null;
+    goalState.noticeCode = null;
+    NotificationPopup.show(this.app, message, code);
+  }
+
+  private noticeMessage(): string | null {
+    if (goalState.notice) return goalState.notice;
+
+    const error = goalState.error;
+    if (error === GOAL_ERROR_CODES.INSUFFICIENT_BALANCE) {
+      return i18n.t("goal.insufficientBalance");
     }
-
-    private multiplierLabel(column: number): string {
-        const x100 = goalState.multipliersX100[column];
-        if (x100 === undefined) return goalMultiplierText(column);
-
-        return `${(x100 / 100).toFixed(2)}x`;
+    if (error === GOAL_ERROR_CODES.INVALID_SLOT) {
+      return i18n.t("goal.invalidSlot");
     }
-
-    private presentNotice(): void {
-        const message = this.noticeMessage();
-        if (!message) return;
-
-        const code = goalState.noticeCode ?? goalState.error ?? "";
-        goalState.notice = null;
-        goalState.noticeCode = null;
-        NotificationPopup.show(this.app, message, code);
+    if (error === GOAL_ERROR_CODES.INVALID_STATE) {
+      return i18n.t("goal.invalidState");
     }
+    return null;
+  }
 
-    private noticeMessage(): string | null {
-        if (goalState.notice) return goalState.notice;
+  private stopRoundClock(): void {
+    this.clearTurnTimer();
+  }
 
-        const error = goalState.error;
-        if (error === GOAL_ERROR_CODES.INSUFFICIENT_BALANCE) {
-            return i18n.t("goal.insufficientBalance");
-        }
-        if (error === GOAL_ERROR_CODES.INVALID_SLOT) {
-            return i18n.t("goal.invalidSlot");
-        }
-        if (error === GOAL_ERROR_CODES.INVALID_STATE) {
-            return i18n.t("goal.invalidState");
-        }
-        return null;
-    }
+  private clearTurnTimer(): void {
+    this.turnId += 1;
+    if (!this.turnTimer) return;
 
-    private stopRoundClock(): void {
-        this.clearTurnTimer();
-    }
-
-    private clearTurnTimer(): void {
-        this.turnId += 1;
-        if (!this.turnTimer) return;
-
-        clearInterval(this.turnTimer);
-        this.turnTimer = null;
-    }
+    clearInterval(this.turnTimer);
+    this.turnTimer = null;
+  }
 }

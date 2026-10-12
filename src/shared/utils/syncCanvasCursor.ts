@@ -9,14 +9,14 @@ const lastPointerY = 0;
  * immediately — even when the real pointer hasn't moved.
  */
 export function syncCanvasCursor() {
-    if (!canvasRef) return;
+  if (!canvasRef) return;
 
-    canvasRef.dispatchEvent(
-        new PointerEvent("pointermove", {
-            clientX: lastPointerX,
-            clientY: lastPointerY,
-            bubbles: true,
-            pointerType: "mouse",
-        }),
-    );
+  canvasRef.dispatchEvent(
+    new PointerEvent("pointermove", {
+      clientX: lastPointerX,
+      clientY: lastPointerY,
+      bubbles: true,
+      pointerType: "mouse",
+    }),
+  );
 }

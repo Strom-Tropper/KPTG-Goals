@@ -1,77 +1,77 @@
 import { Ticker } from "pixi.js";
 
 type AnimateNumberOptions = {
-    from: number;
-    to: number;
-    durationMs: number;
-    frameMs?: number;
-    ticker?: Ticker;
-    onUpdate: (value: number) => void;
-    onComplete?: () => void;
+  from: number;
+  to: number;
+  durationMs: number;
+  frameMs?: number;
+  ticker?: Ticker;
+  onUpdate: (value: number) => void;
+  onComplete?: () => void;
 };
 
 export type NumberAnimation = {
-    stop: (complete?: boolean) => void;
+  stop: (complete?: boolean) => void;
 };
 
 export function animateNumber(options: AnimateNumberOptions): NumberAnimation {
-    const {
-        from,
-        to,
-        durationMs,
-        frameMs = 0,
-        ticker = Ticker.shared,
-        onUpdate,
-        onComplete,
-    } = options;
+  const {
+    from,
+    to,
+    durationMs,
+    frameMs = 0,
+    ticker = Ticker.shared,
+    onUpdate,
+    onComplete,
+  } = options;
 
-    if (durationMs <= 0) {
-        onUpdate(to);
-        onComplete?.();
-        return {
-            stop: () => undefined,
-        };
+  if (durationMs <= 0) {
+    onUpdate(to);
+    onComplete?.();
+    return {
+      stop: () => undefined,
+    };
+  }
+
+  let elapsedMs = 0;
+  let frameElapsedMs = frameMs;
+  let isActive = true;
+
+  const stop = (complete = false) => {
+    if (!isActive) {
+      return;
     }
 
-    let elapsedMs = 0;
-    let frameElapsedMs = frameMs;
-    let isActive = true;
+    ticker.remove(update);
+    isActive = false;
 
-    const stop = (complete = false) => {
-        if (!isActive) {
-            return;
-        }
+    if (complete) {
+      onUpdate(to);
+      onComplete?.();
+    }
+  };
 
-        ticker.remove(update);
-        isActive = false;
+  const update = (tickerUpdate: Ticker) => {
+    elapsedMs += tickerUpdate.deltaMS;
+    frameElapsedMs += tickerUpdate.deltaMS;
 
-        if (complete) {
-            onUpdate(to);
-            onComplete?.();
-        }
-    };
+    const progress = Math.min(1, elapsedMs / durationMs);
 
-    const update = (tickerUpdate: Ticker) => {
-        elapsedMs += tickerUpdate.deltaMS;
-        frameElapsedMs += tickerUpdate.deltaMS;
+    if (progress < 1 && frameElapsedMs < frameMs) {
+      return;
+    }
 
-        const progress = Math.min(1, elapsedMs / durationMs);
+    frameElapsedMs = 0;
+    onUpdate(from + (to - from) * progress);
 
-        if (progress < 1 && frameElapsedMs < frameMs) {
-            return;
-        }
+    if (progress >= 1) {
+      stop(true);
+    }
+  };
 
-        frameElapsedMs = 0;
-        onUpdate(from + (to - from) * progress);
+  ticker.add(update);
 
-        if (progress >= 1) {
-            stop(true);
-        }
-    };
-
-    ticker.add(update);
-
-    return {
-        stop,
-    };
+  return {
+    stop,
+  };
 }

@@ -1,20 +1,25 @@
-import { GOAL_COLUMN_COUNT, GOAL_ERROR_CODES, GOAL_SLOT_COUNT, GOAL_TURN_MS } from "./game.constants";
+import {
+  GOAL_COLUMN_COUNT,
+  GOAL_ERROR_CODES,
+  GOAL_SLOT_COUNT,
+  GOAL_TURN_MS,
+} from "./game.constants";
 import { GOAL_EVENT_NAMES, goalEvents } from "./game.events";
 import { gameState, goalState } from "./game.state";
 import type {
-    GoalCellFace,
-    GoalCellMark,
-    GoalCellTile,
-    GoalConnectState,
-    GoalErrorFrame,
-    GoalGameConfig,
-    GoalPlaying,
-    GoalStatusFrame,
-    GoalWireFinished,
-    GoalHistoryPage,
-    GoalRoundResult,
-    GoalWireOpen,
-    GoalWireTurn,
+  GoalCellFace,
+  GoalCellMark,
+  GoalCellTile,
+  GoalConnectState,
+  GoalErrorFrame,
+  GoalGameConfig,
+  GoalPlaying,
+  GoalStatusFrame,
+  GoalWireFinished,
+  GoalHistoryPage,
+  GoalRoundResult,
+  GoalWireOpen,
+  GoalWireTurn,
 } from "./game.types";
 
 let heldTicket: string | null = null;
@@ -22,529 +27,572 @@ let heldOrdinal: number | null = null;
 let heldTurns: GoalWireTurn[] = [];
 
 export const goalSession = {
-    applyConnect,
-    applySnapshot,
-    applyFrame,
-    applyError,
-    applyHistory,
-    note,
+  applyConnect,
+  applySnapshot,
+  applyFrame,
+  applyError,
+  applyHistory,
+  note,
 };
 
 function applyConnect(packet: GoalConnectState) {
-    if (!packet || (packet.game_config === undefined && !isSnapshot(packet.state))) {
-        return;
-    }
+  if (
+    !packet ||
+    (packet.game_config === undefined && !isSnapshot(packet.state))
+  ) {
+    return;
+  }
 
-    if (packet.game_config) applyConfig(packet.game_config);
-    applySnapshot(packet.state);
+  if (packet.game_config) applyConfig(packet.game_config);
+  applySnapshot(packet.state);
 }
 
 function applySnapshot(snapshot: GoalConnectState["state"]) {
-    if (!isSnapshot(snapshot)) return;
+  if (!isSnapshot(snapshot)) return;
 
-    const mode = snapshot.state;
-    if (mode === "waiting" && snapshot.open) {
-        showOpen(snapshot.open, false);
-        return;
-    }
-    if (mode === "expired" && snapshot.open) {
-        showOpen(snapshot.open, true);
-        return;
-    }
-    if (mode === "unseen" && snapshot.finished) {
-        showFinished(snapshot.finished);
-        return;
-    }
-    if (mode === "idle") showIdle();
+  const mode = snapshot.state;
+  if (mode === "waiting" && snapshot.open) {
+    showOpen(snapshot.open, false);
+    return;
+  }
+  if (mode === "expired" && snapshot.open) {
+    showOpen(snapshot.open, true);
+    return;
+  }
+  if (mode === "unseen" && snapshot.finished) {
+    showFinished(snapshot.finished);
+    return;
+  }
+  if (mode === "idle") showIdle();
 }
 
 function applyFrame(frame: GoalStatusFrame) {
-    const board = frame?.payload?.board;
-    if (!frame || !Array.isArray(board) || frame.ordinal === undefined) return;
+  const board = frame?.payload?.board;
+  if (!frame || !Array.isArray(board) || frame.ordinal === undefined) return;
 
-    const ticket = frame.ticket_id ?? heldTicket ?? "";
-    const sameTicket = heldTicket !== null && ticket === heldTicket;
-    const opening = frame.kind === "deal" || frame.ordinal === 1;
-    if (
-        sameTicket &&
-        !opening &&
-        heldOrdinal !== null &&
-        frame.ordinal <= heldOrdinal
-    ) {
-        return;
-    }
+  const ticket = frame.ticket_id ?? heldTicket ?? "";
+  const sameTicket = heldTicket !== null && ticket === heldTicket;
+  const opening = frame.kind === "deal" || frame.ordinal === 1;
+  if (
+    sameTicket &&
+    !opening &&
+    heldOrdinal !== null &&
+    frame.ordinal <= heldOrdinal
+  ) {
+    return;
+  }
 
-    if (!sameTicket || opening) heldTurns = [];
-    heldTicket = ticket;
-    heldOrdinal = frame.ordinal;
-    goalState.answerOrdinal = frame.ordinal + 1;
-    if (frame.payload?.turn) heldTurns = [...heldTurns, frame.payload.turn];
+  if (!sameTicket || opening) heldTurns = [];
+  heldTicket = ticket;
+  heldOrdinal = frame.ordinal;
+  goalState.answerOrdinal = frame.ordinal + 1;
+  if (frame.payload?.turn) heldTurns = [...heldTurns, frame.payload.turn];
 
-    const cleared = frame.payload?.cleared ?? 0;
-    const done = frame.done === true;
-    const bet = goalState.round.betLevel;
-    goalState.notice = null;
-    goalState.noticeCode = null;
-    goalState.error = null;
-    paintRound({
-        bet,
-        board,
-        turns: heldTurns,
-        cleared,
-        currentWin: frame.payload?.current_win ?? 0,
-        done,
-        ending: frame.payload?.ending,
-        pinkFrom: pinkColumn(frame.payload?.turn, frame.payload?.ending),
-        activeColumn: done ? null : cleared,
-    });
-    if (done) {
-        goalState.deadlineMs = null;
-        publishResult(
-            frame.payload?.ending,
-            frame.payload?.turn?.trap === true,
-            bet,
-            frame.win ?? frame.payload?.current_win ?? 0,
-        );
-    } else {
-        armDeadline(frame.deadline_ms);
-    }
-    unlock();
-    emitScreen();
+  const cleared = frame.payload?.cleared ?? 0;
+  const done = frame.done === true;
+  const bet = goalState.round.betLevel;
+  goalState.notice = null;
+  goalState.noticeCode = null;
+  goalState.error = null;
+  paintRound({
+    bet,
+    board,
+    turns: heldTurns,
+    cleared,
+    currentWin: frame.payload?.current_win ?? 0,
+    done,
+    ending: frame.payload?.ending,
+    pinkFrom: pinkColumn(frame.payload?.turn, frame.payload?.ending),
+    activeColumn: done ? null : cleared,
+  });
+  if (done) {
+    goalState.deadlineMs = null;
+    publishResult(
+      frame.payload?.ending,
+      frame.payload?.turn?.trap === true,
+      bet,
+      frame.win ?? frame.payload?.current_win ?? 0,
+    );
+  } else {
+    armDeadline(frame.deadline_ms);
+  }
+  unlock();
+  emitScreen();
 }
 
 function applyError(frame: GoalErrorFrame) {
-    if (!frame?.errc && !frame?.error) return;
+  if (!frame?.errc && !frame?.error) return;
 
-    goalState.notice = frame.error ?? frame.errc ?? null;
-    goalState.noticeCode = frame.errc ?? (frame.err === undefined ? null : String(frame.err));
-    if (
-        frame.errc === GOAL_ERROR_CODES.INSUFFICIENT_BALANCE ||
-        frame.err === 3 ||
-        frame.errc === "3"
-    ) {
-        goalState.error = GOAL_ERROR_CODES.INSUFFICIENT_BALANCE;
-    }
-    unlock();
-    goalEvents.emit(GOAL_EVENT_NAMES.ERROR, goalState.notice);
+  goalState.notice = frame.error ?? frame.errc ?? null;
+  goalState.noticeCode =
+    frame.errc ?? (frame.err === undefined ? null : String(frame.err));
+  if (
+    frame.errc === GOAL_ERROR_CODES.INSUFFICIENT_BALANCE ||
+    frame.err === 3 ||
+    frame.errc === "3"
+  ) {
+    goalState.error = GOAL_ERROR_CODES.INSUFFICIENT_BALANCE;
+  }
+  unlock();
+  goalEvents.emit(GOAL_EVENT_NAMES.ERROR, goalState.notice);
 }
 
 function note(text: string | null) {
-    goalState.notice = text;
-    goalState.noticeCode = null;
-    goalEvents.emit(GOAL_EVENT_NAMES.ERROR, text);
+  goalState.notice = text;
+  goalState.noticeCode = null;
+  goalEvents.emit(GOAL_EVENT_NAMES.ERROR, text);
 }
 
 function showIdle() {
-    heldTicket = null;
-    heldOrdinal = null;
-    heldTurns = [];
-    goalState.answerOrdinal = null;
-    goalState.deadlineMs = null;
-    goalState.notice = null;
-    goalState.noticeCode = null;
-    goalState.error = null;
-    if (goalState.secondsLeft === null) goalState.secondsLeft = GOAL_TURN_MS / 1000;
-    const bet = goalState.ladder.some((row) => row.bet === goalState.round.betLevel)
-        ? goalState.round.betLevel
-        : goalState.ladder[0]?.bet ?? goalState.round.betLevel;
-    goalState.round = {
-        phase: "standby",
-        betLevel: bet,
-        betChosen: false,
-    };
-    goalState.cells = blankFaces();
-    unlock();
-    emitScreen();
+  heldTicket = null;
+  heldOrdinal = null;
+  heldTurns = [];
+  goalState.answerOrdinal = null;
+  goalState.deadlineMs = null;
+  goalState.notice = null;
+  goalState.noticeCode = null;
+  goalState.error = null;
+  if (goalState.secondsLeft === null)
+    goalState.secondsLeft = GOAL_TURN_MS / 1000;
+  const bet = goalState.ladder.some(
+    (row) => row.bet === goalState.round.betLevel,
+  )
+    ? goalState.round.betLevel
+    : (goalState.ladder[0]?.bet ?? goalState.round.betLevel);
+  goalState.round = {
+    phase: "standby",
+    betLevel: bet,
+    betChosen: false,
+  };
+  goalState.cells = blankFaces();
+  unlock();
+  emitScreen();
 }
 
 function showOpen(open: GoalWireOpen, expired: boolean) {
-    heldTicket = open.ticket_id ?? heldTicket;
-    heldOrdinal = open.ordinal - 1;
-    heldTurns = open.turns ?? [];
-    goalState.answerOrdinal = open.ordinal;
-    goalState.notice = null;
-    goalState.noticeCode = null;
-    goalState.error = null;
-    paintRound({
-        bet: open.bet ?? goalState.round.betLevel,
-        board: open.board ?? [],
-        turns: heldTurns,
-        cleared: open.cleared ?? 0,
-        currentWin: open.current_win ?? 0,
-        done: false,
-        pinkFrom: null,
-        activeColumn: expired ? null : (open.cleared ?? 0),
-    });
-    if (expired) {
-        goalState.deadlineMs = null;
-        goalState.secondsLeft = null;
-        goalState.presentationLocked = true;
-        goalEvents.emit(GOAL_EVENT_NAMES.PRESENTATION_LOCK_CHANGED, true);
-    } else {
-        armDeadline(open.deadline_ms);
-        unlock();
-    }
-    emitScreen();
+  heldTicket = open.ticket_id ?? heldTicket;
+  heldOrdinal = open.ordinal - 1;
+  heldTurns = open.turns ?? [];
+  goalState.answerOrdinal = open.ordinal;
+  goalState.notice = null;
+  goalState.noticeCode = null;
+  goalState.error = null;
+  paintRound({
+    bet: open.bet ?? goalState.round.betLevel,
+    board: open.board ?? [],
+    turns: heldTurns,
+    cleared: open.cleared ?? 0,
+    currentWin: open.current_win ?? 0,
+    done: false,
+    pinkFrom: null,
+    activeColumn: expired ? null : (open.cleared ?? 0),
+  });
+  if (expired) {
+    goalState.deadlineMs = null;
+    goalState.secondsLeft = null;
+    goalState.presentationLocked = true;
+    goalEvents.emit(GOAL_EVENT_NAMES.PRESENTATION_LOCK_CHANGED, true);
+  } else {
+    armDeadline(open.deadline_ms);
+    unlock();
+  }
+  emitScreen();
 }
 
 function showFinished(finished: GoalWireFinished) {
-    heldTicket = finished.ticket_id ?? null;
-    heldOrdinal = null;
-    heldTurns = finished.turns ?? [];
-    goalState.answerOrdinal = null;
-    goalState.deadlineMs = null;
-    goalState.notice = null;
-    goalState.noticeCode = null;
-    goalState.error = null;
-    const last = heldTurns[heldTurns.length - 1];
-    paintRound({
-        bet: finished.bet ?? goalState.round.betLevel,
-        board: finished.board ?? [],
-        turns: heldTurns,
-        cleared: countCleared(heldTurns),
-        currentWin: finished.win ?? 0,
-        done: true,
-        ending: finished.ending,
-        pinkFrom: pinkColumn(last, finished.ending),
-        activeColumn: null,
-    });
-    unlock();
-    publishResult(
-        finished.ending,
-        finished.ending === "trap",
-        finished.bet ?? goalState.round.betLevel,
-        finished.win ?? 0,
-    );
-    emitScreen();
+  heldTicket = finished.ticket_id ?? null;
+  heldOrdinal = null;
+  heldTurns = finished.turns ?? [];
+  goalState.answerOrdinal = null;
+  goalState.deadlineMs = null;
+  goalState.notice = null;
+  goalState.noticeCode = null;
+  goalState.error = null;
+  const last = heldTurns[heldTurns.length - 1];
+  paintRound({
+    bet: finished.bet ?? goalState.round.betLevel,
+    board: finished.board ?? [],
+    turns: heldTurns,
+    cleared: countCleared(heldTurns),
+    currentWin: finished.win ?? 0,
+    done: true,
+    ending: finished.ending,
+    pinkFrom: pinkColumn(last, finished.ending),
+    activeColumn: null,
+  });
+  unlock();
+  publishResult(
+    finished.ending,
+    finished.ending === "trap",
+    finished.bet ?? goalState.round.betLevel,
+    finished.win ?? 0,
+  );
+  emitScreen();
 }
 
-function publishResult(ending: string | undefined, trap: boolean, bet: number, currentWin: number) {
-    const result = roundResult(ending, trap, bet, currentWin);
-    if (!result) return;
+function publishResult(
+  ending: string | undefined,
+  trap: boolean,
+  bet: number,
+  currentWin: number,
+) {
+  const result = roundResult(ending, trap, bet, currentWin);
+  if (!result) return;
 
-    goalEvents.emit(GOAL_EVENT_NAMES.ROUND_RESULT, result);
+  goalEvents.emit(GOAL_EVENT_NAMES.ROUND_RESULT, result);
 }
 
 function roundResult(
-    ending: string | undefined,
-    trap: boolean,
-    bet: number,
-    currentWin: number,
+  ending: string | undefined,
+  trap: boolean,
+  bet: number,
+  currentWin: number,
 ): GoalRoundResult | null {
-    if (ending === "abandoned_at_start") return null;
-    if (trap || ending === "trap") {
-        return { won: false, bet, amount: bet, balance: gameState.balance };
-    }
-    if (currentWin > 0) {
-        return { won: true, bet, amount: currentWin, balance: gameState.balance };
-    }
-    return null;
+  if (ending === "abandoned_at_start") return null;
+  if (trap || ending === "trap") {
+    return { won: false, bet, amount: bet, balance: gameState.balance };
+  }
+  if (currentWin > 0) {
+    return { won: true, bet, amount: currentWin, balance: gameState.balance };
+  }
+  return null;
 }
 
 function applyConfig(config: GoalGameConfig) {
-    if (Array.isArray(config.bet_levels) && config.bet_levels.length > 0) {
-        goalState.ladder = config.bet_levels.map((row) => ({
-            level: String(row.level),
-            bet: row.bet,
-        }));
-    }
-    if (Array.isArray(config.multipliers_x100) && config.multipliers_x100.length > 0) {
-        goalState.multipliersX100 = config.multipliers_x100;
-    }
-    if (config.turn_timer_seconds > 0 && goalState.deadlineMs === null) {
-        goalState.secondsLeft = config.turn_timer_seconds;
-    }
+  if (Array.isArray(config.bet_levels) && config.bet_levels.length > 0) {
+    goalState.ladder = config.bet_levels.map((row) => ({
+      level: String(row.level),
+      bet: row.bet,
+    }));
+  }
+  if (
+    Array.isArray(config.multipliers_x100) &&
+    config.multipliers_x100.length > 0
+  ) {
+    goalState.multipliersX100 = config.multipliers_x100;
+  }
+  if (config.turn_timer_seconds > 0 && goalState.deadlineMs === null) {
+    goalState.secondsLeft = config.turn_timer_seconds;
+  }
 }
 
 function paintRound(screen: {
-    bet: number;
-    board: Array<number | null>;
-    turns: GoalWireTurn[];
-    cleared: number;
-    currentWin: number;
-    done: boolean;
-    ending?: string;
-    pinkFrom: number | null;
-    activeColumn: number | null;
+  bet: number;
+  board: Array<number | null>;
+  turns: GoalWireTurn[];
+  cleared: number;
+  currentWin: number;
+  done: boolean;
+  ending?: string;
+  pinkFrom: number | null;
+  activeColumn: number | null;
 }) {
-    const traps = trapsFrom(screen.board);
-    const clearedPicks = screen.turns.flatMap((turn) => {
-        if (turn.slot === undefined || turn.trap || turn.column === undefined) return [];
-        return [{ column: turn.column - 1, slot: turn.slot }];
-    });
-    const shownColumn = screen.done
-        ? screen.pinkFrom ?? (screen.cleared > 0 ? screen.cleared - 1 : -1)
-        : (screen.activeColumn ?? 0);
+  const traps = trapsFrom(screen.board);
+  const clearedPicks = screen.turns.flatMap((turn) => {
+    if (turn.slot === undefined || turn.trap || turn.column === undefined)
+      return [];
+    return [{ column: turn.column - 1, slot: turn.slot }];
+  });
+  const shownColumn = screen.done
+    ? (screen.pinkFrom ?? (screen.cleared > 0 ? screen.cleared - 1 : -1))
+    : (screen.activeColumn ?? 0);
 
-    if (screen.done) {
-        goalState.round = {
-            phase: "ended",
-            betLevel: screen.bet,
-            betChosen: true,
-            column: shownColumn,
-            clearedColumns: screen.cleared,
-        };
-    } else {
-        const playing: GoalPlaying = {
-            phase: "playing",
-            betLevel: screen.bet,
-            column: screen.activeColumn ?? 0,
-            clearedColumns: screen.cleared,
-            cashoutAmount: screen.currentWin,
-            traps,
-            cleared: clearedPicks,
-        };
-        goalState.round = playing;
-    }
+  if (screen.done) {
+    goalState.round = {
+      phase: "ended",
+      betLevel: screen.bet,
+      betChosen: true,
+      column: shownColumn,
+      clearedColumns: screen.cleared,
+    };
+  } else {
+    const playing: GoalPlaying = {
+      phase: "playing",
+      betLevel: screen.bet,
+      column: screen.activeColumn ?? 0,
+      clearedColumns: screen.cleared,
+      cashoutAmount: screen.currentWin,
+      traps,
+      cleared: clearedPicks,
+    };
+    goalState.round = playing;
+  }
 
-    goalState.cells = facesFor(
-        screen.board,
-        clearedPicks,
-        screen.done ? null : screen.activeColumn,
-        screen.pinkFrom,
-        screen.done,
-        screen.cleared,
-        screen.ending,
-    );
+  goalState.cells = facesFor(
+    screen.board,
+    clearedPicks,
+    screen.done ? null : screen.activeColumn,
+    screen.pinkFrom,
+    screen.done,
+    screen.cleared,
+    screen.ending,
+  );
 }
 
 function facesFor(
-    board: Array<number | null>,
-    picks: { column: number; slot: number }[],
-    activeColumn: number | null,
-    pinkFrom: number | null,
-    done: boolean,
-    cleared: number,
-    ending?: string,
-    sourceTurns: GoalWireTurn[] = heldTurns,
+  board: Array<number | null>,
+  picks: { column: number; slot: number }[],
+  activeColumn: number | null,
+  pinkFrom: number | null,
+  done: boolean,
+  cleared: number,
+  ending?: string,
+  sourceTurns: GoalWireTurn[] = heldTurns,
 ): GoalCellFace[][] {
-    const faces = blankFaces();
-    const safeColumns = new Set(picks.map((pick) => pick.column));
-    const walkedAll = ending === "max" || cleared >= GOAL_COLUMN_COUNT;
-    for (let column = 0; column < GOAL_COLUMN_COUNT; column += 1) {
-        const pink = done && (
-            pinkFrom !== null
-                ? column >= pinkFrom
-                : !walkedAll && column >= cleared
-        );
-        const mask = board[column];
-        for (let slot = 0; slot < GOAL_SLOT_COUNT; slot += 1) {
-            const active = activeColumn === column && !pink;
-            const trap =
-                (done || !safeColumns.has(column)) &&
-                mask !== null &&
-                mask !== undefined &&
-                (mask & (1 << slot)) !== 0;
-            faces[column][slot] = {
-                tile: pink ? "explode" : active ? "active" : "normal",
-                mark: trap ? "bomb" : "none",
-            };
-        }
+  const faces = blankFaces();
+  const safeColumns = new Set(picks.map((pick) => pick.column));
+  const walkedAll = ending === "max" || cleared >= GOAL_COLUMN_COUNT;
+  for (let column = 0; column < GOAL_COLUMN_COUNT; column += 1) {
+    const pink =
+      done &&
+      (pinkFrom !== null
+        ? column >= pinkFrom
+        : !walkedAll && column >= cleared);
+    const mask = board[column];
+    for (let slot = 0; slot < GOAL_SLOT_COUNT; slot += 1) {
+      const active = activeColumn === column && !pink;
+      const trap =
+        (done || !safeColumns.has(column)) &&
+        mask !== null &&
+        mask !== undefined &&
+        (mask & (1 << slot)) !== 0;
+      faces[column][slot] = {
+        tile: pink ? "explode" : active ? "active" : "normal",
+        mark: trap ? "bomb" : "none",
+      };
     }
+  }
 
-    picks.forEach((pick, index) => {
-        const face = faces[pick.column]?.[pick.slot];
-        if (!face) return;
-        face.tile = "normal";
-        face.mark = index === picks.length - 1 ? "ball" : "bullet";
-    });
+  picks.forEach((pick, index) => {
+    const face = faces[pick.column]?.[pick.slot];
+    if (!face) return;
+    face.tile = "normal";
+    face.mark = index === picks.length - 1 ? "ball" : "bullet";
+  });
 
-    if (pinkFrom !== null) {
-        const trapTurn = sourceTurns.find(
-            (turn) => turn.trap && turn.column === pinkFrom + 1 && turn.slot !== undefined,
-        );
-        const face = trapTurn?.slot === undefined
-            ? undefined
-            : faces[pinkFrom]?.[trapTurn.slot];
-        if (face) {
-            face.tile = "explode";
-            face.mark = "explode";
-        }
+  if (pinkFrom !== null) {
+    const trapTurn = sourceTurns.find(
+      (turn) =>
+        turn.trap && turn.column === pinkFrom + 1 && turn.slot !== undefined,
+    );
+    const face =
+      trapTurn?.slot === undefined
+        ? undefined
+        : faces[pinkFrom]?.[trapTurn.slot];
+    if (face) {
+      face.tile = "explode";
+      face.mark = "explode";
     }
+  }
 
-    return faces;
+  return faces;
 }
 
 export function goalHistoryFaces(
-    board: Array<number | null>,
-    turns: GoalWireTurn[],
-    ending: string,
+  board: Array<number | null>,
+  turns: GoalWireTurn[],
+  ending: string,
 ): GoalCellFace[][] {
-    const padded = Array.from({ length: GOAL_COLUMN_COUNT }, (_, column) => {
-        const mask = board[column];
-        return typeof mask === "number" ? mask : null;
-    });
-    const picks = turns.flatMap((turn) => {
-        if (turn.slot === undefined || turn.trap || turn.column === undefined) return [];
-        return [{ column: turn.column - 1, slot: turn.slot }];
-    });
-    const trapTurn = turns.find(
-        (turn) => turn.trap && turn.column !== undefined && turn.slot !== undefined,
-    );
-    const done = ending.length > 0;
-    const pinkFrom =
-        done && trapTurn?.column !== undefined ? trapTurn.column - 1 : null;
-    return facesFor(
-        padded,
-        picks,
-        null,
-        pinkFrom,
-        done,
-        picks.length,
-        ending || undefined,
-        turns,
-    );
+  const padded = Array.from({ length: GOAL_COLUMN_COUNT }, (_, column) => {
+    const mask = board[column];
+    return typeof mask === "number" ? mask : null;
+  });
+  const picks = turns.flatMap((turn) => {
+    if (turn.slot === undefined || turn.trap || turn.column === undefined)
+      return [];
+    return [{ column: turn.column - 1, slot: turn.slot }];
+  });
+  const trapTurn = turns.find(
+    (turn) => turn.trap && turn.column !== undefined && turn.slot !== undefined,
+  );
+  const done = ending.length > 0;
+  const pinkFrom =
+    done && trapTurn?.column !== undefined ? trapTurn.column - 1 : null;
+  return facesFor(
+    padded,
+    picks,
+    null,
+    pinkFrom,
+    done,
+    picks.length,
+    ending || undefined,
+    turns,
+  );
 }
 
 function pinkColumn(turn: GoalWireTurn | undefined, ending?: string) {
-    if (ending !== "trap" && !turn?.trap) return null;
-    if (turn?.column === undefined) return null;
-    return turn.column - 1;
+  if (ending !== "trap" && !turn?.trap) return null;
+  if (turn?.column === undefined) return null;
+  return turn.column - 1;
 }
 
 function trapsFrom(board: Array<number | null>) {
-    return Array.from({ length: GOAL_COLUMN_COUNT }, (_, column) => {
-        const mask = board[column];
-        if (mask === null || mask === undefined) return -1;
-        for (let slot = 0; slot < GOAL_SLOT_COUNT; slot += 1) {
-            if ((mask & (1 << slot)) !== 0) return slot;
-        }
-        return -1;
-    });
+  return Array.from({ length: GOAL_COLUMN_COUNT }, (_, column) => {
+    const mask = board[column];
+    if (mask === null || mask === undefined) return -1;
+    for (let slot = 0; slot < GOAL_SLOT_COUNT; slot += 1) {
+      if ((mask & (1 << slot)) !== 0) return slot;
+    }
+    return -1;
+  });
 }
 
 function countCleared(turns: GoalWireTurn[]) {
-    return turns.filter((turn) => turn.slot !== undefined && !turn.trap).length;
+  return turns.filter((turn) => turn.slot !== undefined && !turn.trap).length;
 }
 
 function armDeadline(deadline: number | undefined) {
-    if (deadline === undefined) {
-        goalState.deadlineMs = null;
-        return;
-    }
+  if (deadline === undefined) {
+    goalState.deadlineMs = null;
+    return;
+  }
 
-    goalState.deadlineMs = deadline;
-    goalState.secondsLeft = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+  goalState.deadlineMs = deadline;
+  goalState.secondsLeft = Math.max(
+    0,
+    Math.ceil((deadline - Date.now()) / 1000),
+  );
 }
 
 function applyHistory(payload: unknown): void {
-    goalEvents.emit(GOAL_EVENT_NAMES.BET_HISTORY, readGoalHistory(payload));
+  goalEvents.emit(GOAL_EVENT_NAMES.BET_HISTORY, readGoalHistory(payload));
 }
 
 function readGoalHistory(payload: unknown): GoalHistoryPage {
-    const body = record(payload);
-    const nested = record(body.data);
-    const list = Array.isArray(body.list)
-        ? body.list
-        : Array.isArray(nested.list)
-          ? nested.list
-          : Array.isArray(body.data)
-            ? body.data
-            : [];
-    return {
-        rows: list.map((item) => {
-            const row = record(item);
-            return {
-                roundId: text(row.round_id),
-                time: historyClock(row.created_at),
-                bet: amount(row.bet),
-                win: amount(row.win),
-                ending: text(row.ending),
-                board: historyBoard(row.board),
-                turns: historyTurns(row.turns),
-            };
-        }),
-        total: amount(body.total ?? nested.total),
-        page: amount(body.page ?? nested.page),
-        limit: amount(body.limit ?? nested.limit) || 10,
-    };
+  const body = record(payload);
+  const nested = record(body.data);
+  const list = Array.isArray(body.list)
+    ? body.list
+    : Array.isArray(nested.list)
+      ? nested.list
+      : Array.isArray(body.data)
+        ? body.data
+        : [];
+  return {
+    rows: list.map((item) => {
+      const row = record(item);
+      return {
+        roundId: text(row.round_id),
+        time: historyClock(row.created_at),
+        bet: amount(row.bet),
+        win: amount(row.win),
+        ending: text(row.ending),
+        board: historyBoard(row.board),
+        turns: historyTurns(row.turns),
+      };
+    }),
+    total: amount(body.total ?? nested.total),
+    page: amount(body.page ?? nested.page),
+    limit: amount(body.limit ?? nested.limit) || 10,
+  };
 }
 
 function historyBoard(value: unknown): Array<number | null> {
-    if (!Array.isArray(value)) return [];
-    return value.map((mask) => (typeof mask === "number" ? mask : null));
+  if (!Array.isArray(value)) return [];
+  return value.map((mask) => (typeof mask === "number" ? mask : null));
 }
 
 function historyTurns(value: unknown): GoalWireTurn[] {
-    if (!Array.isArray(value)) return [];
-    return value.map((item) => {
-        const turn = record(item);
-        return {
-            ordinal: finite(turn.ordinal),
-            column: finite(turn.column),
-            by: text(turn.by) || undefined,
-            action: text(turn.action) || undefined,
-            slot: finite(turn.slot),
-            trap: turn.trap === true,
-            presence: text(turn.presence) || undefined,
-        };
-    });
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const turn = record(item);
+    return {
+      ordinal: finite(turn.ordinal),
+      column: finite(turn.column),
+      by: text(turn.by) || undefined,
+      action: text(turn.action) || undefined,
+      slot: finite(turn.slot),
+      trap: turn.trap === true,
+      presence: text(turn.presence) || undefined,
+    };
+  });
 }
 
 function finite(value: unknown): number | undefined {
-    if (value === null || value === undefined || value === "") return undefined;
-    const number = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
-    return Number.isFinite(number) ? number : undefined;
+  if (value === null || value === undefined || value === "") return undefined;
+  const number =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : NaN;
+  return Number.isFinite(number) ? number : undefined;
 }
 
 function record(value: unknown): Record<string, unknown> {
-    return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  return value !== null && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function text(value: unknown): string {
-    return typeof value === "string" || typeof value === "number" ? String(value) : "";
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : "";
 }
 
 function amount(value: unknown): number {
-    const number = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
-    return Number.isFinite(number) ? number : 0;
+  const number =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : NaN;
+  return Number.isFinite(number) ? number : 0;
 }
 
 function historyClock(value: unknown): string {
-    const date = historyDate(value);
-    if (!date) return "";
+  const date = historyDate(value);
+  if (!date) return "";
 
-    const pad = (part: number) => String(part).padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function historyDate(value: unknown): Date | null {
-    if (typeof value === "number" && Number.isFinite(value)) {
-        const date = new Date(value < 1e12 ? value * 1000 : value);
-        return Number.isNaN(date.getTime()) ? null : date;
-    }
-    if (typeof value !== "string" || !value) return null;
-
-    const numeric = Number(value);
-    if (value.trim() !== "" && Number.isFinite(numeric)) return historyDate(numeric);
-
-    const date = new Date(value);
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const date = new Date(value < 1e12 ? value * 1000 : value);
     return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof value !== "string" || !value) return null;
+
+  const numeric = Number(value);
+  if (value.trim() !== "" && Number.isFinite(numeric))
+    return historyDate(numeric);
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function unlock() {
-    if (!goalState.presentationLocked) return;
+  if (!goalState.presentationLocked) return;
 
-    goalState.presentationLocked = false;
-    goalEvents.emit(GOAL_EVENT_NAMES.PRESENTATION_LOCK_CHANGED, false);
+  goalState.presentationLocked = false;
+  goalEvents.emit(GOAL_EVENT_NAMES.PRESENTATION_LOCK_CHANGED, false);
 }
 
 function emitScreen() {
-    goalEvents.emit(GOAL_EVENT_NAMES.SCREEN, goalState.round);
+  goalEvents.emit(GOAL_EVENT_NAMES.SCREEN, goalState.round);
 }
 
-function isSnapshot(
-    value: GoalConnectState["state"],
-): value is { state?: string; open?: GoalWireOpen; finished?: GoalWireFinished } {
-    return typeof value === "object" && value !== null && typeof value.state === "string";
+function isSnapshot(value: GoalConnectState["state"]): value is {
+  state?: string;
+  open?: GoalWireOpen;
+  finished?: GoalWireFinished;
+} {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof value.state === "string"
+  );
 }
 
 function blankFaces(): GoalCellFace[][] {
-    return Array.from({ length: GOAL_COLUMN_COUNT }, () =>
-        Array.from({ length: GOAL_SLOT_COUNT }, () => cell("normal", "none")),
-    );
+  return Array.from({ length: GOAL_COLUMN_COUNT }, () =>
+    Array.from({ length: GOAL_SLOT_COUNT }, () => cell("normal", "none")),
+  );
 }
 
 function cell(tile: GoalCellTile, mark: GoalCellMark): GoalCellFace {
-    return { tile, mark };
+  return { tile, mark };
 }

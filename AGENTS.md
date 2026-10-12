@@ -45,7 +45,7 @@ Bàn Goal nằm ở `src/scenes/` (`GameBoard`, `GameCells`, `GameBoardArt`). Đ
 
 ## Kiểu code
 
-TypeScript, module ESM, alias `@/` trỏ `src/`. Bốn space, nháy đôi, chấm phẩy, dấu phẩy cuối ở chỗ nhiều dòng. Số lớn viết `10_000`, `30_000`. Hằng số `as const`.
+TypeScript, module ESM, alias `@/` trỏ `src/`. Hai space, nháy đôi, chấm phẩy, dấu phẩy cuối ở chỗ nhiều dòng. Số lớn viết `10_000`, `30_000`. Hằng số `as const`.
 
 | Thứ | Cách đặt | Đang có |
 | --- | --- | --- |

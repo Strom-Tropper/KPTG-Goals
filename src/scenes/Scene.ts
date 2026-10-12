@@ -1,5 +1,5 @@
 export interface Scene {
-    pause(): void;
-    resume(): void;
-    destroy(): void;
+  pause(): void;
+  resume(): void;
+  destroy(): void;
 }

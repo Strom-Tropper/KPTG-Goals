@@ -24,117 +24,117 @@ import buttonSettingsUrl from "../../raw-assets/board{m}{copy}/button-settings.s
 
 import type { ButtonSkin } from "@/components/GameControls";
 import {
-    goalAssets,
-    type GoalAssetName,
+  goalAssets,
+  type GoalAssetName,
 } from "@/modules/game/engine/game.assets";
 
 export type { ButtonSkin };
 
 export type GameBoardArt = {
-    ball: Texture;
-    bomb: Texture;
-    bullet: Texture;
-    button: ButtonSkin;
-    cellActive: Texture;
-    cellExplode: Texture;
-    cellNormal: Texture;
-    explode: Texture;
-    info: ButtonSkin;
-    settings: ButtonSkin;
-    minus: ButtonSkin;
-    plus: ButtonSkin;
+  ball: Texture;
+  bomb: Texture;
+  bullet: Texture;
+  button: ButtonSkin;
+  cellActive: Texture;
+  cellExplode: Texture;
+  cellNormal: Texture;
+  explode: Texture;
+  info: ButtonSkin;
+  settings: ButtonSkin;
+  minus: ButtonSkin;
+  plus: ButtonSkin;
 };
 
 const ART_URLS = {
-    [goalAssets.cell_normal]: cellNormalUrl,
-    [goalAssets.cell_active]: cellActiveUrl,
-    [goalAssets.cell_explode]: cellExplodeUrl,
-    [goalAssets.mark_ball]: markBallUrl,
-    [goalAssets.mark_bomb]: markBombUrl,
-    [goalAssets.mark_bullet]: markBulletUrl,
-    [goalAssets.mark_explode]: markExplodeUrl,
-    [goalAssets.button_face]: buttonFaceUrl,
-    [goalAssets.button_face_hover]: buttonFaceHoverUrl,
-    [goalAssets.button_face_active]: buttonFaceActiveUrl,
-    [goalAssets.button_plus]: buttonPlusUrl,
-    [goalAssets.button_plus_hover]: buttonPlusHoverUrl,
-    [goalAssets.button_plus_active]: buttonPlusActiveUrl,
-    [goalAssets.button_minus]: buttonMinusUrl,
-    [goalAssets.button_minus_hover]: buttonMinusHoverUrl,
-    [goalAssets.button_minus_active]: buttonMinusActiveUrl,
-    [goalAssets.button_info]: buttonInfoUrl,
-    [goalAssets.button_info_hover]: buttonInfoHoverUrl,
-    [goalAssets.button_info_active]: buttonInfoActiveUrl,
-    [goalAssets.button_settings]: buttonSettingsUrl,
-    [goalAssets.button_settings_hover]: buttonSettingsHoverUrl,
-    [goalAssets.button_settings_active]: buttonSettingsActiveUrl,
+  [goalAssets.cell_normal]: cellNormalUrl,
+  [goalAssets.cell_active]: cellActiveUrl,
+  [goalAssets.cell_explode]: cellExplodeUrl,
+  [goalAssets.mark_ball]: markBallUrl,
+  [goalAssets.mark_bomb]: markBombUrl,
+  [goalAssets.mark_bullet]: markBulletUrl,
+  [goalAssets.mark_explode]: markExplodeUrl,
+  [goalAssets.button_face]: buttonFaceUrl,
+  [goalAssets.button_face_hover]: buttonFaceHoverUrl,
+  [goalAssets.button_face_active]: buttonFaceActiveUrl,
+  [goalAssets.button_plus]: buttonPlusUrl,
+  [goalAssets.button_plus_hover]: buttonPlusHoverUrl,
+  [goalAssets.button_plus_active]: buttonPlusActiveUrl,
+  [goalAssets.button_minus]: buttonMinusUrl,
+  [goalAssets.button_minus_hover]: buttonMinusHoverUrl,
+  [goalAssets.button_minus_active]: buttonMinusActiveUrl,
+  [goalAssets.button_info]: buttonInfoUrl,
+  [goalAssets.button_info_hover]: buttonInfoHoverUrl,
+  [goalAssets.button_info_active]: buttonInfoActiveUrl,
+  [goalAssets.button_settings]: buttonSettingsUrl,
+  [goalAssets.button_settings_hover]: buttonSettingsHoverUrl,
+  [goalAssets.button_settings_active]: buttonSettingsActiveUrl,
 } satisfies Record<GoalAssetName, string>;
 
 export async function loadGameBoardArt(): Promise<GameBoardArt> {
-    const loaded = await Promise.all(
-        Object.entries(ART_URLS).map(async ([name, url]) => {
-            const texture = await Assets.load<Texture>({
-                src: url,
-                data: { resolution: 2 },
-            });
-            return [name, texture] as const;
-        }),
-    );
-    const texture = Object.fromEntries(loaded) as Record<
-        keyof typeof ART_URLS,
-        Texture
-    >;
+  const loaded = await Promise.all(
+    Object.entries(ART_URLS).map(async ([name, url]) => {
+      const texture = await Assets.load<Texture>({
+        src: url,
+        data: { resolution: 2 },
+      });
+      return [name, texture] as const;
+    }),
+  );
+  const texture = Object.fromEntries(loaded) as Record<
+    keyof typeof ART_URLS,
+    Texture
+  >;
 
-    return {
-        ball: texture[goalAssets.mark_ball],
-        bomb: texture[goalAssets.mark_bomb],
-        bullet: texture[goalAssets.mark_bullet],
-        button: skin(
-            texture,
-            goalAssets.button_face,
-            goalAssets.button_face_hover,
-            goalAssets.button_face_active,
-        ),
-        cellActive: texture[goalAssets.cell_active],
-        cellExplode: texture[goalAssets.cell_explode],
-        cellNormal: texture[goalAssets.cell_normal],
-        explode: texture[goalAssets.mark_explode],
-        info: skin(
-            texture,
-            goalAssets.button_info,
-            goalAssets.button_info_hover,
-            goalAssets.button_info_active,
-        ),
-        settings: skin(
-            texture,
-            goalAssets.button_settings,
-            goalAssets.button_settings_hover,
-            goalAssets.button_settings_active,
-        ),
-        minus: skin(
-            texture,
-            goalAssets.button_minus,
-            goalAssets.button_minus_hover,
-            goalAssets.button_minus_active,
-        ),
-        plus: skin(
-            texture,
-            goalAssets.button_plus,
-            goalAssets.button_plus_hover,
-            goalAssets.button_plus_active,
-        ),
-    };
+  return {
+    ball: texture[goalAssets.mark_ball],
+    bomb: texture[goalAssets.mark_bomb],
+    bullet: texture[goalAssets.mark_bullet],
+    button: skin(
+      texture,
+      goalAssets.button_face,
+      goalAssets.button_face_hover,
+      goalAssets.button_face_active,
+    ),
+    cellActive: texture[goalAssets.cell_active],
+    cellExplode: texture[goalAssets.cell_explode],
+    cellNormal: texture[goalAssets.cell_normal],
+    explode: texture[goalAssets.mark_explode],
+    info: skin(
+      texture,
+      goalAssets.button_info,
+      goalAssets.button_info_hover,
+      goalAssets.button_info_active,
+    ),
+    settings: skin(
+      texture,
+      goalAssets.button_settings,
+      goalAssets.button_settings_hover,
+      goalAssets.button_settings_active,
+    ),
+    minus: skin(
+      texture,
+      goalAssets.button_minus,
+      goalAssets.button_minus_hover,
+      goalAssets.button_minus_active,
+    ),
+    plus: skin(
+      texture,
+      goalAssets.button_plus,
+      goalAssets.button_plus_hover,
+      goalAssets.button_plus_active,
+    ),
+  };
 }
 
 function skin(
-    texture: Record<GoalAssetName, Texture>,
-    normal: GoalAssetName,
-    hover: GoalAssetName,
-    active: GoalAssetName,
+  texture: Record<GoalAssetName, Texture>,
+  normal: GoalAssetName,
+  hover: GoalAssetName,
+  active: GoalAssetName,
 ): ButtonSkin {
-    return {
-        normal: texture[normal],
-        hover: texture[hover],
-        active: texture[active],
-    };
+  return {
+    normal: texture[normal],
+    hover: texture[hover],
+    active: texture[active],
+  };
 }
