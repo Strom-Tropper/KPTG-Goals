@@ -2,7 +2,8 @@ import { Application, Renderer } from "pixi.js";
 import type { Scene } from "@/scenes/Scene";
 import { GameBoard } from "@/scenes/GameBoard";
 import { loadGameBoardArt } from "@/scenes/GameBoardArt";
-import { GameNoticePopup } from "@/components/GameNoticePopup";
+import { BonusGameLosePopup } from "@/components/bonus-game/BonusGameLosePopup";
+import { BonusGameWinPopup } from "@/components/bonus-game/BonusGameWinPopup";
 import { NotificationPopup } from "@/components/NotificationPopup";
 import { createHistoryPopup, type HistoryPopupView } from "@/components/HIstoryPopup/HistoryPopup";
 import { SettingPopup, type SettingsHooks } from "@/components/SettingPopup";
@@ -24,6 +25,8 @@ export class GameScene implements Scene {
     private readonly board: GameBoard;
     private readonly historyView: HistoryPopupView;
     private readonly infoView: InfoView;
+    private readonly winPopup: BonusGameWinPopup;
+    private readonly losePopup: BonusGameLosePopup;
     private awaitingPointer = false;
     private turnTimer: ReturnType<typeof setInterval> | null = null;
     private turnId = 0;
@@ -55,10 +58,14 @@ export class GameScene implements Scene {
         });
         this.historyView = createHistoryPopup(this.app);
         this.infoView = createInfoPopup(this.app);
+        this.winPopup = new BonusGameWinPopup(this.app);
+        this.losePopup = new BonusGameLosePopup(this.app);
         NotificationPopup.attach(this.app);
         this.app.stage.addChild(this.board);
         this.app.stage.addChild(this.historyView);
         this.app.stage.addChild(this.infoView);
+        this.app.stage.addChild(this.losePopup);
+        this.app.stage.addChild(this.winPopup);
         this.listen();
         void this.mount();
     }
@@ -87,7 +94,8 @@ export class GameScene implements Scene {
         for (const stop of this.unlisten) stop();
         this.unlisten.length = 0;
         this.clearTurnTimer();
-        GameNoticePopup.close();
+        this.winPopup.destroy({ children: true });
+        this.losePopup.destroy({ children: true });
         NotificationPopup.close();
         SettingPopup.close();
         this.historyView.destroy({ children: true });
@@ -161,7 +169,9 @@ export class GameScene implements Scene {
                 this.paint();
             }),
             goalEvents.on(GOAL_EVENT_NAMES.ROUND_RESULT, (payload) => {
-                GameNoticePopup.showResult(this.app, payload as GoalRoundResult);
+                const result = payload as GoalRoundResult;
+                if (result.won) this.winPopup.showWin(result.amount);
+                else this.losePopup.showLoss(result.amount);
             }),
             goalEvents.on(GOAL_EVENT_NAMES.STANDBY, () => {
                 this.stopRoundClock();
