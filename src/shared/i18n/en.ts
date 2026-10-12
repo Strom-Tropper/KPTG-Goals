@@ -88,6 +88,16 @@ export const en = {
         invalidState: "Choose a bet first",
         invalidSlot: "Pick an open cell",
         notConnected: "Not connected",
+        infoPlay: {
+            title: "HOW TO PLAY",
+            board: "Seven columns, four cells each. Each column hides one trap.",
+            steps: "Choose a bet and press PLAY. Pick a cell in the lit column, or press RANDOM.",
+            safe: "A safe cell lights the next column. CASHOUT shows what you can take.",
+            cashout: "CASHOUT opens after at least one safe column.",
+            trap: "A trap ends the round and loses the stake. Traps appear when the round ends.",
+            timer: "The clock follows the server. At zero the server resolves the turn.",
+            multipliers: "Column multipliers: 1.29, 1.72, 2.29, 3.06, 4.08, 5.45, 7.26.",
+        },
     },
     settings: {
         music: "MUSIC",

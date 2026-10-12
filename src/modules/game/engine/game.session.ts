@@ -11,6 +11,7 @@ import type {
     GoalPlaying,
     GoalStatusFrame,
     GoalWireFinished,
+    GoalHistoryPage,
     GoalRoundResult,
     GoalWireOpen,
     GoalWireTurn,
@@ -25,6 +26,7 @@ export const goalSession = {
     applySnapshot,
     applyFrame,
     applyError,
+    applyHistory,
     note,
 };
 
@@ -84,6 +86,7 @@ function applyFrame(frame: GoalStatusFrame) {
     const done = frame.done === true;
     const bet = goalState.round.betLevel;
     goalState.notice = null;
+    goalState.noticeCode = null;
     goalState.error = null;
     paintRound({
         bet,
@@ -115,6 +118,7 @@ function applyError(frame: GoalErrorFrame) {
     if (!frame?.errc && !frame?.error) return;
 
     goalState.notice = frame.error ?? frame.errc ?? null;
+    goalState.noticeCode = frame.errc ?? (frame.err === undefined ? null : String(frame.err));
     if (
         frame.errc === GOAL_ERROR_CODES.INSUFFICIENT_BALANCE ||
         frame.err === 3 ||
@@ -128,6 +132,7 @@ function applyError(frame: GoalErrorFrame) {
 
 function note(text: string | null) {
     goalState.notice = text;
+    goalState.noticeCode = null;
     goalEvents.emit(GOAL_EVENT_NAMES.ERROR, text);
 }
 
@@ -138,6 +143,7 @@ function showIdle() {
     goalState.answerOrdinal = null;
     goalState.deadlineMs = null;
     goalState.notice = null;
+    goalState.noticeCode = null;
     goalState.error = null;
     if (goalState.secondsLeft === null) goalState.secondsLeft = GOAL_TURN_MS / 1000;
     const bet = goalState.ladder.some((row) => row.bet === goalState.round.betLevel)
@@ -159,6 +165,7 @@ function showOpen(open: GoalWireOpen, expired: boolean) {
     heldTurns = open.turns ?? [];
     goalState.answerOrdinal = open.ordinal;
     goalState.notice = null;
+    goalState.noticeCode = null;
     goalState.error = null;
     paintRound({
         bet: open.bet ?? goalState.round.betLevel,
@@ -189,6 +196,7 @@ function showFinished(finished: GoalWireFinished) {
     goalState.answerOrdinal = null;
     goalState.deadlineMs = null;
     goalState.notice = null;
+    goalState.noticeCode = null;
     goalState.error = null;
     const last = heldTurns[heldTurns.length - 1];
     paintRound({
@@ -387,6 +395,64 @@ function armDeadline(deadline: number | undefined) {
 
     goalState.deadlineMs = deadline;
     goalState.secondsLeft = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+}
+
+function applyHistory(payload: unknown): void {
+    goalEvents.emit(GOAL_EVENT_NAMES.BET_HISTORY, readGoalHistory(payload));
+}
+
+function readGoalHistory(payload: unknown): GoalHistoryPage {
+    const body = record(payload);
+    const list = Array.isArray(body.list) ? body.list : [];
+    return {
+        rows: list.map((item) => {
+            const row = record(item);
+            return {
+                roundId: text(row.round_id),
+                time: historyClock(row.created_at),
+                bet: amount(row.bet),
+                win: amount(row.win),
+            };
+        }),
+        total: amount(body.total),
+        page: amount(body.page),
+        limit: amount(body.limit) || 10,
+    };
+}
+
+function record(value: unknown): Record<string, unknown> {
+    return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function text(value: unknown): string {
+    return typeof value === "string" || typeof value === "number" ? String(value) : "";
+}
+
+function amount(value: unknown): number {
+    const number = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+    return Number.isFinite(number) ? number : 0;
+}
+
+function historyClock(value: unknown): string {
+    const date = historyDate(value);
+    if (!date) return "";
+
+    const pad = (part: number) => String(part).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function historyDate(value: unknown): Date | null {
+    if (typeof value === "number" && Number.isFinite(value)) {
+        const date = new Date(value < 1e12 ? value * 1000 : value);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+    if (typeof value !== "string" || !value) return null;
+
+    const numeric = Number(value);
+    if (value.trim() !== "" && Number.isFinite(numeric)) return historyDate(numeric);
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function unlock() {

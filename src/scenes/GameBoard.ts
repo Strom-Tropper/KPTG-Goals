@@ -42,16 +42,14 @@ const boardCells = {
 const railControls: {
     size: { ratio: number; min: number; max: number };
     timer: BoxControl;
-    sound: BoxControl;
-    history: BoxControl;
     info: BoxControl;
+    settings: BoxControl;
 } = {
     // rail size and gap
     size: { ratio: 0.053, min: 28, max: 48 },
     timer: { w: 1.25, h: 1.25, gapLeft: 15, gapRight: 0, gapTop: 0, gapBottom: 27 },
-    sound: { w: 1, h: 1, gapLeft: 25, gapRight: 0, gapTop: 0, gapBottom: 9 },
-    history: { w: 1, h: 1, gapLeft: 25, gapRight: 0, gapTop: 0, gapBottom: 9 },
-    info: { w: 1, h: 1, gapLeft: 25, gapRight: 0, gapTop: 0, gapBottom: 0 },
+    info: { w: 1, h: 1, gapLeft: 25, gapRight: 0, gapTop: 0, gapBottom: 9 },
+    settings: { w: 1, h: 1, gapLeft: 25, gapRight: 0, gapTop: 0, gapBottom: 0 },
 };
 
 const bottomControls: {
@@ -104,8 +102,6 @@ export type GameBoardModel = {
     plusEnabled: boolean;
     resetText: string;
     resetEnabled: boolean;
-    historyEnabled: boolean;
-    soundMuted: boolean;
 };
 
 export type GoalMultiplierMark = {
@@ -123,8 +119,7 @@ export type GameBoardActions = {
     onPick: (slot: number) => void;
     onRandom: () => void;
     onInfo: () => void;
-    onHistory: () => void;
-    onSound: () => void;
+    onSettings: () => void;
 };
 
 export class GameBoard extends Container {
@@ -434,28 +429,6 @@ export class GameBoard extends Container {
         this.drawTimerKnob(model, rail.timer);
         this.addChild(
             circleButton(
-                rail.sound.cx,
-                rail.sound.cy,
-                rail.sound.width,
-                rail.sound.height,
-                model.soundMuted ? art.soundOff : art.sound,
-                true,
-                this.actions.onSound,
-            ),
-        );
-        this.addChild(
-            circleButton(
-                rail.history.cx,
-                rail.history.cy,
-                rail.history.width,
-                rail.history.height,
-                art.history,
-                model.historyEnabled,
-                this.actions.onHistory,
-            ),
-        );
-        this.addChild(
-            circleButton(
                 rail.info.cx,
                 rail.info.cy,
                 rail.info.width,
@@ -463,6 +436,17 @@ export class GameBoard extends Container {
                 art.info,
                 true,
                 this.actions.onInfo,
+            ),
+        );
+        this.addChild(
+            circleButton(
+                rail.settings.cx,
+                rail.settings.cy,
+                rail.settings.width,
+                rail.settings.height,
+                art.settings,
+                true,
+                this.actions.onSettings,
             ),
         );
     }
@@ -560,9 +544,8 @@ type RailRect = {
 function railBoxes(): BoxControl[] {
     return [
         railControls.timer,
-        railControls.sound,
-        railControls.history,
         railControls.info,
+        railControls.settings,
     ];
 }
 
@@ -576,9 +559,8 @@ function railSpan(base: number): number {
 
 function placeRail(frameRight: number, frameTop: number, base: number): {
     timer: RailRect;
-    sound: RailRect;
-    history: RailRect;
     info: RailRect;
+    settings: RailRect;
 } {
     const boxes = railBoxes();
     const widths = boxes.map((box) => Math.max(1, Math.round(base * box.w) - box.gapRight));
@@ -600,9 +582,8 @@ function placeRail(frameRight: number, frameTop: number, base: number): {
     });
     return {
         timer: placed[0],
-        sound: placed[1],
-        history: placed[2],
-        info: placed[3],
+        info: placed[1],
+        settings: placed[2],
     };
 }
 

@@ -3,6 +3,9 @@ import type { Scene } from "@/scenes/Scene";
 import { GameBoard } from "@/scenes/GameBoard";
 import { loadGameBoardArt } from "@/scenes/GameBoardArt";
 import { GameNoticePopup } from "@/components/GameNoticePopup";
+import { NotificationPopup } from "@/components/NotificationPopup";
+import { SettingPopup, type SettingsHooks } from "@/components/SettingPopup";
+import { createInfoPopup, type InfoView } from "@/components/InfoPopup/InfoPopup";
 import { GOAL_ERROR_CODES, goalMultiplierText } from "@/modules/game/engine/game.constants";
 import { goalEngine } from "@/modules/game/engine/game.engine";
 import { EVENT_NAMES, eventBus, GOAL_EVENT_NAMES, goalEvents } from "@/modules/game/engine/game.events";
@@ -18,6 +21,7 @@ import { format } from "@/shared/utils/formatNumber";
 export class GameScene implements Scene {
     private readonly app: Application<Renderer>;
     private readonly board: GameBoard;
+    private readonly infoView: InfoView;
     private awaitingPointer = false;
     private turnTimer: ReturnType<typeof setInterval> | null = null;
     private turnId = 0;
@@ -45,10 +49,12 @@ export class GameScene implements Scene {
             onPick: this.onPick,
             onRandom: this.onRandom,
             onInfo: this.onInfo,
-            onHistory: this.onHistory,
-            onSound: this.onSound,
+            onSettings: this.onSettings,
         });
+        this.infoView = createInfoPopup(this.app);
+        NotificationPopup.attach(this.app);
         this.app.stage.addChild(this.board);
+        this.app.stage.addChild(this.infoView);
         this.listen();
         void this.mount();
     }
@@ -78,6 +84,9 @@ export class GameScene implements Scene {
         this.unlisten.length = 0;
         this.clearTurnTimer();
         GameNoticePopup.close();
+        NotificationPopup.close();
+        SettingPopup.close();
+        this.infoView.destroy();
         this.app.renderer.off("resize", this.paint);
         this.board.destroy({ children: true });
     }
@@ -127,8 +136,6 @@ export class GameScene implements Scene {
             plusEnabled: goalEngine.CanIncreaseBet(),
             resetText: i18n.t("goal.resetBet"),
             resetEnabled: goalEngine.CanReset(),
-            historyEnabled: round.phase !== "playing",
-            soundMuted: audioSystem.isOutputMuted(),
         });
     };
 
@@ -208,24 +215,20 @@ export class GameScene implements Scene {
         this.sendBare(() => gameRequests.PlayLevel(goalEngine.BetLevelKey()), "sfx_btn");
     }
 
-    private onSound = (): void => {
-        const muted = audioSystem.isOutputMuted();
-        if (muted) audioSystem.toggleOutputMute();
-        this.tap("sfx_btn");
-        if (!muted) audioSystem.toggleOutputMute();
-        this.paint();
-    };
-
     private onInfo = (): void => {
         this.tap("sfx_btn");
-        GameNoticePopup.show(this.app, "info");
+        this.infoView.show();
     };
 
-    private onHistory = (): void => {
-        if (goalState.round.phase === "playing") return;
-
+    private onSettings = (): void => {
         this.tap("sfx_btn");
-        GameNoticePopup.show(this.app, "history");
+        SettingPopup.show(this.app, this.settingsHooks());
+    };
+
+    private settingsHooks(): SettingsHooks {
+        return {
+            historyEnabled: () => goalState.round.phase !== "playing",
+        };
     };
 
     private onRandom = (): void => {
@@ -312,8 +315,10 @@ export class GameScene implements Scene {
         const message = this.noticeMessage();
         if (!message) return;
 
+        const code = goalState.noticeCode ?? goalState.error ?? "";
         goalState.notice = null;
-        GameNoticePopup.show(this.app, message);
+        goalState.noticeCode = null;
+        NotificationPopup.show(this.app, message, code);
     }
 
     private noticeMessage(): string | null {

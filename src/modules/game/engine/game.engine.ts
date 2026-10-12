@@ -965,6 +965,7 @@ function GoalSetBetLevel(index: number) {
     const held = goalState.round.phase === "standby" ? goalState.round.column : undefined;
     goalState.error = null;
     goalState.notice = null;
+    goalState.noticeCode = null;
     goalState.betListOpen = false;
     goalState.round = {
         phase: "standby",

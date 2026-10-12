@@ -2,9 +2,15 @@ import { Spritesheet } from "pixi.js";
 
 type GameAssetStore = {
     Localization: Spritesheet;
+    InfoPopup: Spritesheet;
+    PopupCommon: Spritesheet;
 };
 
 export const gameAssets = {} as GameAssetStore;
+
+export function releaseSpritesheetGpuTexture(sheet?: Spritesheet): void {
+    sheet?.textureSource?.unload();
+}
 
 export async function PreloadAssets(onProgress?: (progress: number) => void) {
     onProgress?.(1);
@@ -31,15 +37,9 @@ export const goalAssets = {
     button_info: "button-info",
     button_info_hover: "button-info-hover",
     button_info_active: "button-info-active",
-    button_sound: "button-sound",
-    button_sound_hover: "button-sound-hover",
-    button_sound_active: "button-sound-active",
-    button_sound_off: "button-sound-off",
-    button_sound_off_hover: "button-sound-off-hover",
-    button_sound_off_active: "button-sound-off-active",
-    button_history: "button-history",
-    button_history_hover: "button-history-hover",
-    button_history_active: "button-history-active",
+    button_settings: "button-settings",
+    button_settings_hover: "button-settings-hover",
+    button_settings_active: "button-settings-active",
 } as const;
 
 export type GoalAssetName = (typeof goalAssets)[keyof typeof goalAssets];

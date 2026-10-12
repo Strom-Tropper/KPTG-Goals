@@ -1,6 +1,6 @@
 # C5 Game FE — Victory Road
 
-Ghi chú này mô tả slot cũ. Cây đang chạy và luật đặt tên nằm ở `storm/architecture.md`. Spec Goal nằm ở `storm/goal-plan.md`. Khi file này khác code, code thắng.
+Ghi chú này mô tả slot cũ. Luật ván và dây nằm ở `storm/README.md`. Cách viết code nằm ở `AGENTS.md`. Khi file này khác code, code thắng.
 
 ## Directory Structure
 

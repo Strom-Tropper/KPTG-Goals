@@ -131,6 +131,7 @@ type GoalState = {
     cells: GoalCellFace[][];
     error: GoalErrorCode | null;
     notice: string | null;
+    noticeCode: string | null;
     presentationLocked: boolean;
     betListOpen: boolean;
     secondsLeft: number | null;
@@ -154,6 +155,7 @@ export const goalState: GoalState = {
     cells: [],
     error: null,
     notice: null,
+    noticeCode: null,
     presentationLocked: false,
     betListOpen: false,
     secondsLeft: GOAL_TURN_MS / 1000,

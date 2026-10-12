@@ -10,7 +10,7 @@ export const RES_MAIN_BALANCE_UPDATE = 102;
 export const RES_BALANCE_UPDATE = 196;
 export const RES_ERROR = 199;
 // export const RES_JACKPOT_HISTORY = 451;
-// export const RES_BET_HISTORY = 452;
+export const RES_BET_HISTORY = 452;
 
 /* ===============================
    REQUEST CODES (FE -> BE)
@@ -25,8 +25,8 @@ export const RES_STATE = 206;
 // export const REQ_JACKPOT_VALUES = 110;
 // export const REQ_CHANGE_WALLET = 208;
 // export const REQ_JACKPOT_HISTORY = 401;
-// export const REQ_BET_HISTORY = 402;
-// export const REQ_CONFIRM_SESSION = 210;
+export const REQ_BET_HISTORY = 402;
+export const REQ_CONFIRM_SESSION = 210;
 
 /* ===============================
    BETTING

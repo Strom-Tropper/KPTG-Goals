@@ -379,6 +379,20 @@ export type GoalRoundResult = {
     balance: number;
 };
 
+export type GoalHistoryRow = {
+    roundId: string;
+    time: string;
+    bet: number;
+    win: number;
+};
+
+export type GoalHistoryPage = {
+    rows: GoalHistoryRow[];
+    total: number;
+    page: number;
+    limit: number;
+};
+
 export type GoalPickResult = {
     round: GoalRound;
     cashedOut: number;

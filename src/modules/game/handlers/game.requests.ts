@@ -1,6 +1,8 @@
 import { socketClient } from "../ws/game.ws";
 import {
+    REQ_BET_HISTORY,
     REQ_CASHOUT,
+    REQ_CONFIRM_SESSION,
     REQ_MINIGAME_PICK,
     REQ_RANDOM,
     REQ_SPIN,
@@ -52,9 +54,9 @@ export const gameRequests = {
     //     return socketClient.send(REQ_JACKPOT_HISTORY, null, { page, limit });
     // },
 
-    // RequestBetHistory(page: number = 1, limit: number = 10) {
-    //     return socketClient.send(REQ_BET_HISTORY, null, { page, limit });
-    // },
+    RequestBetHistory(page = 0, limit = 10) {
+        return socketClient.send(REQ_BET_HISTORY, null, { page, limit });
+    },
 
     // ChangeWallet(walletProvider: string) {
     //     return socketClient.send(REQ_CHANGE_WALLET, {
@@ -62,7 +64,7 @@ export const gameRequests = {
     //     });
     // },
 
-    // ConfirmSession() {
-    //     return socketClient.send(REQ_CONFIRM_SESSION);
-    // },
+    ConfirmSession() {
+        return socketClient.send(REQ_CONFIRM_SESSION);
+    },
 };

@@ -15,10 +15,8 @@ const PLATE_WIDTH = 640;
 const NOTICE_HEIGHT = 280;
 const RESULT_HEIGHT = 420;
 const CLOSE_SIZE = 48;
-const MESSAGE_SIZE = 22;
 const BUTTON_WIDTH = 160;
 const BUTTON_HEIGHT = 52;
-const BUTTON_GAP = 24;
 
 export class GameNoticePopup extends Popup {
     private static instance: GameNoticePopup | null = null;
@@ -42,14 +40,6 @@ export class GameNoticePopup extends Popup {
         this.content.addChild(this.body);
         this.place();
         this.app.renderer.on("resize", this.place);
-    }
-
-    static show(app: Application<Renderer>, message: string): void {
-        const popup = GameNoticePopup.open(app);
-        void popup.paint().then(() => {
-            popup.fillNotice(message);
-            popup.show();
-        });
     }
 
     static showResult(app: Application<Renderer>, result: GoalRoundResult): void {
@@ -116,36 +106,6 @@ export class GameNoticePopup extends Popup {
             this.content.addChild(close);
         });
         return this.ready;
-    }
-
-    private fillNotice(message: string): void {
-        this.sizePlate(NOTICE_HEIGHT);
-        this.body.removeChildren();
-        const text = goalLabel(message, 0, -36, MESSAGE_SIZE, GOAL_INK);
-        text.style.wordWrap = true;
-        text.style.wordWrapWidth = PLATE_WIDTH - 160;
-        this.body.addChild(text);
-        if (!this.skin) return;
-
-        const row = BUTTON_WIDTH * 2 + BUTTON_GAP;
-        const x = -row / 2;
-        const y = 28;
-        this.body.addChild(
-            labeledButton(x, y, BUTTON_WIDTH, BUTTON_HEIGHT, [i18n.t("goal.ok")], true, () => this.hide(), false, this.skin),
-        );
-        this.body.addChild(
-            labeledButton(
-                x + BUTTON_WIDTH + BUTTON_GAP,
-                y,
-                BUTTON_WIDTH,
-                BUTTON_HEIGHT,
-                [i18n.t("goal.cancel")],
-                true,
-                () => this.hide(),
-                false,
-                this.skin,
-            ),
-        );
     }
 
     private fillResult(result: GoalRoundResult): void {

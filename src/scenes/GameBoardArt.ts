@@ -18,15 +18,9 @@ import buttonMinusUrl from "../../raw-assets/board{m}{copy}/button-minus.svg";
 import buttonPlusActiveUrl from "../../raw-assets/board{m}{copy}/button-plus-active.svg";
 import buttonPlusHoverUrl from "../../raw-assets/board{m}{copy}/button-plus-hover.svg";
 import buttonPlusUrl from "../../raw-assets/board{m}{copy}/button-plus.svg";
-import buttonSoundActiveUrl from "../../raw-assets/board{m}{copy}/button-sound-active.svg";
-import buttonSoundOffActiveUrl from "../../raw-assets/board{m}{copy}/button-sound-off-active.svg";
-import buttonSoundOffHoverUrl from "../../raw-assets/board{m}{copy}/button-sound-off-hover.svg";
-import buttonSoundOffUrl from "../../raw-assets/board{m}{copy}/button-sound-off.svg";
-import buttonSoundHoverUrl from "../../raw-assets/board{m}{copy}/button-sound-hover.svg";
-import buttonSoundUrl from "../../raw-assets/board{m}{copy}/button-sound.svg";
-import buttonHistoryActiveUrl from "../../raw-assets/board{m}{copy}/button-history-active.svg";
-import buttonHistoryHoverUrl from "../../raw-assets/board{m}{copy}/button-history-hover.svg";
-import buttonHistoryUrl from "../../raw-assets/board{m}{copy}/button-history.svg";
+import buttonSettingsActiveUrl from "../../raw-assets/board{m}{copy}/button-settings-active.svg";
+import buttonSettingsHoverUrl from "../../raw-assets/board{m}{copy}/button-settings-hover.svg";
+import buttonSettingsUrl from "../../raw-assets/board{m}{copy}/button-settings.svg";
 
 import type { ButtonSkin } from "@/components/GameControls";
 import {
@@ -45,12 +39,10 @@ export type GameBoardArt = {
     cellExplode: Texture;
     cellNormal: Texture;
     explode: Texture;
-    history: ButtonSkin;
     info: ButtonSkin;
+    settings: ButtonSkin;
     minus: ButtonSkin;
     plus: ButtonSkin;
-    sound: ButtonSkin;
-    soundOff: ButtonSkin;
 };
 
 const ART_URLS = {
@@ -73,15 +65,9 @@ const ART_URLS = {
     [goalAssets.button_info]: buttonInfoUrl,
     [goalAssets.button_info_hover]: buttonInfoHoverUrl,
     [goalAssets.button_info_active]: buttonInfoActiveUrl,
-    [goalAssets.button_sound]: buttonSoundUrl,
-    [goalAssets.button_sound_hover]: buttonSoundHoverUrl,
-    [goalAssets.button_sound_active]: buttonSoundActiveUrl,
-    [goalAssets.button_sound_off]: buttonSoundOffUrl,
-    [goalAssets.button_sound_off_hover]: buttonSoundOffHoverUrl,
-    [goalAssets.button_sound_off_active]: buttonSoundOffActiveUrl,
-    [goalAssets.button_history]: buttonHistoryUrl,
-    [goalAssets.button_history_hover]: buttonHistoryHoverUrl,
-    [goalAssets.button_history_active]: buttonHistoryActiveUrl,
+    [goalAssets.button_settings]: buttonSettingsUrl,
+    [goalAssets.button_settings_hover]: buttonSettingsHoverUrl,
+    [goalAssets.button_settings_active]: buttonSettingsActiveUrl,
 } satisfies Record<GoalAssetName, string>;
 
 export async function loadGameBoardArt(): Promise<GameBoardArt> {
@@ -113,17 +99,17 @@ export async function loadGameBoardArt(): Promise<GameBoardArt> {
         cellExplode: texture[goalAssets.cell_explode],
         cellNormal: texture[goalAssets.cell_normal],
         explode: texture[goalAssets.mark_explode],
-        history: skin(
-            texture,
-            goalAssets.button_history,
-            goalAssets.button_history_hover,
-            goalAssets.button_history_active,
-        ),
         info: skin(
             texture,
             goalAssets.button_info,
             goalAssets.button_info_hover,
             goalAssets.button_info_active,
+        ),
+        settings: skin(
+            texture,
+            goalAssets.button_settings,
+            goalAssets.button_settings_hover,
+            goalAssets.button_settings_active,
         ),
         minus: skin(
             texture,
@@ -136,18 +122,6 @@ export async function loadGameBoardArt(): Promise<GameBoardArt> {
             goalAssets.button_plus,
             goalAssets.button_plus_hover,
             goalAssets.button_plus_active,
-        ),
-        sound: skin(
-            texture,
-            goalAssets.button_sound,
-            goalAssets.button_sound_hover,
-            goalAssets.button_sound_active,
-        ),
-        soundOff: skin(
-            texture,
-            goalAssets.button_sound_off,
-            goalAssets.button_sound_off_hover,
-            goalAssets.button_sound_off_active,
         ),
     };
 }

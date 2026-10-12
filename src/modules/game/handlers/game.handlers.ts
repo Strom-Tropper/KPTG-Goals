@@ -4,6 +4,7 @@ import { gameEngine } from "../engine/game.engine";
 import { goalSession } from "../engine/game.session";
 import {
     RES_BALANCE_UPDATE,
+    RES_BET_HISTORY,
     RES_ERROR,
     RES_FIRST_LOAD,
     RES_MAIN_BALANCE_UPDATE,
@@ -72,9 +73,9 @@ export function InitGameHandlers(): void {
     //     eventBus.emit(EVENT_NAMES.JACKPOT_HISTORY_RESPONSE, data);
     // });
     //
-    // socketClient.on(RES_BET_HISTORY, (data: any) => {
-    //     eventBus.emit(EVENT_NAMES.BETTING_HISTORY_RESPONSE, data);
-    // });
+    socketClient.on(RES_BET_HISTORY, (data: any) => {
+        goalSession.applyHistory(data);
+    });
 
     socketClient.on(RES_MAIN_BALANCE_UPDATE, (data: any) => {
         gameEngine.handleBalanceUpdateResponse({
